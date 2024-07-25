@@ -1,0 +1,75 @@
+{
+  "ZooProtocol": {
+    "address": "0x69cF5C52f11aCbB36401dA1A5645f6C624ADb4cD",
+    "args": []
+  },
+  "ProtocolSettings": {
+    "address": "0x87464e930d0750bCc14F50563445016De672b6De",
+    "args": [
+      "0x69cF5C52f11aCbB36401dA1A5645f6C624ADb4cD",
+      "0xA362CE829b7c95ea6AD8Fb2C509d9c3E9b05e733"
+    ]
+  },
+  "Usb": {
+    "address": "0x5F66378b0Fda193117dE64fed052c3f3950B4F41",
+    "args": [
+      "0x69cF5C52f11aCbB36401dA1A5645f6C624ADb4cD",
+      "0x87464e930d0750bCc14F50563445016De672b6De"
+    ]
+  },
+  "VaultCalculator": {
+    "address": "0xc839D49F4E42b0A5C00F1e8fbF37C53b9101FA19",
+    "args": []
+  },
+  "ETH_PriceFeed": {
+    "address": "0xbeeCe374113976aa50dbedd96a90a9e6FBbC791d",
+    "args": []
+  },
+  "ETHx": {
+    "address": "0x7A9Ec1877b87084F1de9531d181826cB71666c51",
+    "args": [
+      "0x69cF5C52f11aCbB36401dA1A5645f6C624ADb4cD",
+      "0x87464e930d0750bCc14F50563445016De672b6De",
+      "Zoo Leveraged ETH",
+      "ETHx"
+    ]
+  },
+  "ETH_Vault": {
+    "address": "0xb791B2B5632AAcBcBE81f592752FAD64f4639ef5",
+    "args": [
+      "0x69cF5C52f11aCbB36401dA1A5645f6C624ADb4cD",
+      "0x87464e930d0750bCc14F50563445016De672b6De",
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "0x7A9Ec1877b87084F1de9531d181826cB71666c51",
+      "0xbeeCe374113976aa50dbedd96a90a9e6FBbC791d"
+    ]
+  },
+  "ETH_PtyPoolBuyLow": {
+    "address": "0xe1c0224C62BA38065A45D904C1C42A45eFe54F6B",
+    "args": [
+      "0x69cF5C52f11aCbB36401dA1A5645f6C624ADb4cD",
+      "0x87464e930d0750bCc14F50563445016De672b6De",
+      "0xb791B2B5632AAcBcBE81f592752FAD64f4639ef5",
+      "0x7A9Ec1877b87084F1de9531d181826cB71666c51",
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+    ]
+  },
+  "ETH_PtyPoolSellHigh": {
+    "address": "0xfcad1691d27d3b6EA2BED56E466Da1C0EB678b6d",
+    "args": [
+      "0x69cF5C52f11aCbB36401dA1A5645f6C624ADb4cD",
+      "0x87464e930d0750bCc14F50563445016De672b6De",
+      "0xb791B2B5632AAcBcBE81f592752FAD64f4639ef5",
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "0x7A9Ec1877b87084F1de9531d181826cB71666c51"
+    ]
+  },
+  "StableVaultCalculator": {
+    "address": "0xA33cDF96894330600c98d5230AdeB36318226478",
+    "args": []
+  },
+  "VaultQuery": {
+    "address": "0xB9c568611758C3D048cB0eb53C9268DEfb52B35E",
+    "args": []
+  }
+}

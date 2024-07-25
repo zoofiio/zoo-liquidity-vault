@@ -15,7 +15,8 @@ const chainIds = {
   hardhat: 31337,
   ganache: 1337,
   mainnet: 1,
-  sepolia: 11155111
+  sepolia: 11155111,
+  'bera-bartio': 80084,
 };
 
 // Ensure that we have all the environment variables we need.
@@ -34,6 +35,9 @@ function createTestnetConfig(network: keyof typeof chainIds): NetworkUserConfig 
       break;
     case "sepolia":
       nodeUrl = `https://sepolia.infura.io/v3/${infuraKey}`;
+      break;
+    case 'bera-bartio':
+      nodeUrl = 'https://bartio.rpc.berachain.com';
       break;
   }
 
@@ -97,8 +101,17 @@ const config: HardhatUserConfig = {
     apiKey: {
       mainnet: process.env.ETHERSCAN_KEY || "",
       sepolia: process.env.ETHERSCAN_KEY || "",
+      'bera-bartio': process.env.BERA_EXPLORER_KEY  || ""
     },
     customChains: [
+      {
+        network: "bera-bartio",
+        chainId: 80084,
+        urls: {
+          apiURL: "https://api.routescan.io/v2/network/testnet/evm/80084/etherscan/api",
+          browserURL: "https://bartio.beratrail.io"
+        }
+      },
 
     ]
   },
@@ -108,6 +121,7 @@ if (deployerKey) {
   config.networks = {
     mainnet: createTestnetConfig("mainnet"),
     sepolia: createTestnetConfig("sepolia"),
+    'bera-bartio': createTestnetConfig('bera-bartio'),
   };
 }
 

@@ -14,7 +14,6 @@ contract MockPriceFeed is IPriceFeed, Ownable, ReentrancyGuard {
   EnumerableSet.AddressSet internal _testers;
 
   constructor() {
-    _transferOwnership(tx.origin);
     _setTester(tx.origin, true);
   }
 

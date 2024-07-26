@@ -21,9 +21,7 @@ contract ZooProtocol is IZooProtocol, Ownable, ReentrancyGuard {
 
   bool public initialized;
 
-  constructor() {
-    _transferOwnership(tx.origin);
-  }
+  constructor() {}
 
   /* ========== Views ========= */
 

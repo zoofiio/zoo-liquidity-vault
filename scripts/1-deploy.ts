@@ -7,16 +7,17 @@ import { deployContract } from "./hutils";
 
 dotenv.config();
 
-const treasuryAddress = '0xA362CE829b7c95ea6AD8Fb2C509d9c3E9b05e733';
-const ethPriceFeed = '';
+const treasuryAddress = '0xC73ce0c5e473E68058298D9163296BebAC2b729C';
+const ibgtPriceFeed = '';
 
+// https://docs.infrared.finance/testnet/deployments#contracts
 const vaults = [
   {
-    assetsToken: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-    assetsSymbol: "ETH",
-    marginTokenName: "Zoo Leveraged ETH",
-    marginTokenSymbol: "ETHx",
-    chainlinkPriceFeed: ethPriceFeed,
+    assetsToken: "0x46eFC86F0D7455F135CC9df501673739d513E982",
+    assetsSymbol: "iBGT",
+    marginTokenName: "Zoo Leveraged iBGT",
+    marginTokenSymbol: "iBGTx",
+    chainlinkPriceFeed: ibgtPriceFeed,
   },
 ];
 

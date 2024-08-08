@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../libs/Constants.sol";
 import "../libs/TokensTransfer.sol";
 import "../interfaces/IProtocolSettings.sol";
-import "../interfaces/IUsb.sol";
+import "../interfaces/IUsd.sol";
 import "../interfaces/IVault.sol";
 import "../interfaces/IZooProtocol.sol";
 import "../settings/ProtocolOwner.sol";
@@ -26,7 +26,7 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
   IVault internal immutable _vault;
 
   address internal _stakingAssetToken;  // $ETH / $WBTC / ...
-  address internal _matchingUsbToken;  // $USB
+  address internal _matchingUsdToken;  // $zUSD
   address internal _stakingYieldsAssetToken;  // $ETH / $WBTC / ...
   address internal _matchingYieldsMarginToken;  // $ETHx / $WBTCx / ...
 
@@ -38,9 +38,9 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
   mapping(address => uint256) internal _userMatchingYieldsPerSharePaid;
   mapping(address => uint256) internal _userMatchingYields;
   
-  uint256 internal _usbSharesPerStakingShare;   // $USB shares
-  mapping(address => uint256) internal _userUsbSharesPerStakingSharePaid;
-  mapping(address => uint256) internal _userUsbShares;
+  uint256 internal _usdSharesPerStakingShare;   // $zUSD shares
+  mapping(address => uint256) internal _userUsdSharesPerStakingSharePaid;
+  mapping(address => uint256) internal _userUsdShares;
 
   /* ========== CONSTRUCTOR ========== */
 
@@ -55,7 +55,7 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
     _vault = IVault(_vault_);
 
     _stakingAssetToken = _vault.assetToken();
-    _matchingUsbToken = protocol.usbToken();
+    _matchingUsdToken = protocol.usdToken();
 
     _stakingYieldsAssetToken = _stakingYieldsToken_;
     _matchingYieldsMarginToken = _matchingYieldsToken_;
@@ -76,7 +76,7 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
   }
 
   function targetToken() public view returns (address) {
-    return _matchingUsbToken;
+    return _matchingUsdToken;
   }
 
   function stakingYieldsToken() public view returns (address) {
@@ -110,15 +110,15 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
     return _userStakingShares[account].mul(_matchingYieldsPerShare.sub(_userMatchingYieldsPerSharePaid[account])).div(1e18).add(_userMatchingYields[account]);
   }
 
-  // $USB
+  // $zUSD
   function earnedMatchedToken(address account) public view returns (uint256) {
-    uint256 earnedMatchedUsbShares = _earnedMatchedTokenShares(account);
-    return IUsb(_matchingUsbToken).getBalanceByShares(earnedMatchedUsbShares);
+    uint256 earnedMatchedUsdShares = _earnedMatchedTokenShares(account);
+    return IUsd(_matchingUsdToken).getBalanceByShares(earnedMatchedUsdShares);
   }
 
-  // $USB shares
+  // $zUSD shares
   function _earnedMatchedTokenShares(address account) internal view returns (uint256) {
-    return _userStakingShares[account].mul(_usbSharesPerStakingShare.sub(_userUsbSharesPerStakingSharePaid[account])).div(1e18).add(_userUsbShares[account]);
+    return _userStakingShares[account].mul(_usdSharesPerStakingShare.sub(_userUsdSharesPerStakingSharePaid[account])).div(1e18).add(_userUsdShares[account]);
   }
 
   function getStakingSharesByBalance(uint256 stakingBalance) external view returns (uint256) {
@@ -179,13 +179,13 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
     }
   }
 
-  // $USB
+  // $zUSD
   function getMatchingOutTokens() public nonReentrant updateTargetTokens(_msgSender()) {
-    uint256 userUsbShares = _userUsbShares[_msgSender()];
-    if (userUsbShares > 0) {
-      _userUsbShares[_msgSender()] = 0;
-      IUsb(_matchingUsbToken).transferShares(_msgSender(), userUsbShares);
-      emit MatchedTokenPaid(_msgSender(), IUsb(_matchingUsbToken).getBalanceByShares(userUsbShares));
+    uint256 userUsdShares = _userUsdShares[_msgSender()];
+    if (userUsdShares > 0) {
+      _userUsdShares[_msgSender()] = 0;
+      IUsd(_matchingUsdToken).transferShares(_msgSender(), userUsdShares);
+      emit MatchedTokenPaid(_msgSender(), IUsd(_matchingUsdToken).getBalanceByShares(userUsdShares));
     }
   }
 
@@ -212,7 +212,7 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
    */
   function rescue(address token, address recipient) external nonReentrant onlyOwner {
     require(token != address(0) && recipient != address(0), "Zero address detected");
-    require(token != _stakingAssetToken && token != _matchingUsbToken && token != _stakingYieldsAssetToken && token != _matchingYieldsMarginToken, "Cannot rescue staking or yield tokens");
+    require(token != _stakingAssetToken && token != _matchingUsdToken && token != _stakingYieldsAssetToken && token != _matchingYieldsMarginToken, "Cannot rescue staking or yield tokens");
 
     uint256 amount;
     if (token == Constants.NATIVE_TOKEN) {
@@ -243,14 +243,14 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
     emit MatchingYieldsAdded(yieldsAmount);
   }
 
-  // $USB; $USB should be minted to this contract before calling this function
-  function notifySellHighTriggered(uint256 assetAmountMatched, uint256 usbSharesReceived, address assetRecipient) external nonReentrant updateTargetTokens(address(0)) onlyVault {
+  // $zUSD; $zUSD should be minted to this contract before calling this function
+  function notifySellHighTriggered(uint256 assetAmountMatched, uint256 usdSharesReceived, address assetRecipient) external nonReentrant updateTargetTokens(address(0)) onlyVault {
     // require(_vault.vaultMode() == Constants.VaultMode.AdjustmentAboveAARU, "Vault not in adjustment above AARU mode");
 
     TokensTransfer.transferTokens(_stakingAssetToken, address(this), assetRecipient, assetAmountMatched);
 
-    _usbSharesPerStakingShare = _usbSharesPerStakingShare.add(usbSharesReceived.mul(1e18).div(_totalStakingShares));
-    emit MatchedTokensAdded(usbSharesReceived);
+    _usdSharesPerStakingShare = _usdSharesPerStakingShare.add(usdSharesReceived.mul(1e18).div(_totalStakingShares));
+    emit MatchedTokensAdded(usdSharesReceived);
 
     // $ETHx
     if (_accruedMatchingYields > 0) {
@@ -307,8 +307,8 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
 
   modifier updateTargetTokens(address account) {
     if (account != address(0)) {
-      _userUsbShares[account] = _earnedMatchedTokenShares(account);
-      _userUsbSharesPerStakingSharePaid[account] = _usbSharesPerStakingShare;
+      _userUsdShares[account] = _earnedMatchedTokenShares(account);
+      _userUsdSharesPerStakingSharePaid[account] = _usdSharesPerStakingShare;
     }
     _;
   }

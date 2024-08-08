@@ -5,7 +5,7 @@ interface IZooProtocol {
 
   function protocolOwner() external view returns (address);
 
-  function usbToken() external view returns (address);
+  function usdToken() external view returns (address);
 
   function isVault(address vaultAddress) external view returns (bool);
 

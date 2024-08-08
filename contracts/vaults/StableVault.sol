@@ -14,7 +14,7 @@ import "../interfaces/IZooProtocol.sol";
 import "../interfaces/IVault.sol";
 import "../interfaces/IPriceFeed.sol";
 import "../interfaces/IProtocolSettings.sol";
-import "../interfaces/IUsb.sol";
+import "../interfaces/IUsd.sol";
 import "../interfaces/IMarginToken.sol";
 import "../settings/ProtocolOwner.sol";
 import "./TokenPot.sol";
@@ -25,16 +25,16 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
 
   bool internal _mintPaused;
   bool internal _redeemPaused;
-  bool internal _usbToMarginTokensPaused;
+  bool internal _usdToMarginTokensPaused;
 
   IProtocolSettings public immutable settings;
   TokenPot public immutable tokenPot;
 
   address internal immutable _assetToken;
-  address internal immutable _usbToken;
+  address internal immutable _usdToken;
   address internal immutable _marginToken;
 
-  uint256 internal _usbTotalSupply;
+  uint256 internal _usdTotalSupply;
 
   uint256 internal _lastYieldsSettlementTime;
   uint256 internal _previousAAR;
@@ -60,13 +60,13 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
 
     _assetToken = _assetToken_;
     _marginToken = _marginToken_;
-    _usbToken = protocol.usbToken();
+    _usdToken = protocol.usdToken();
 
     settings = IProtocolSettings(_settings);
 
     _mintPaused = false;
     _redeemPaused = false;
-    _usbToMarginTokensPaused = false;
+    _usdToMarginTokensPaused = false;
     priceFeed = IPriceFeed(_assetTokenPriceFeed_);
   }
 
@@ -78,19 +78,19 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
   /* ================= VIEWS ================ */
 
   function paused() external view virtual returns (bool, bool, bool) {
-    return (_mintPaused, _redeemPaused, _usbToMarginTokensPaused);
+    return (_mintPaused, _redeemPaused, _usdToMarginTokensPaused);
   }
 
   function vaultType() external pure override returns (Constants.VaultType) {
     return Constants.VaultType.Stable;
   }
 
-  function usbToken() external view override returns (address) {
-    return _usbToken;
+  function usdToken() external view override returns (address) {
+    return _usdToken;
   }
 
-  function usbTotalSupply() public view override returns (uint256) {
-    return _usbTotalSupply;
+  function usdTotalSupply() public view override returns (uint256) {
+    return _usdTotalSupply;
   }
 
   function assetBalance() external view override returns (uint256) {
@@ -138,8 +138,8 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
 
   /* ========== MUTATIVE FUNCTIONS ========== */
 
-  function mintUsb(uint256 assetAmount) external payable nonReentrant whenMintNotPaused noneZeroValue(assetAmount) validMsgValue(assetAmount) onUserAction(true) {
-    (Constants.StableVaultState memory S, uint256 usbOutAmount) = this.calcMintUsbFromStableVault(assetAmount);
+  function mintUsd(uint256 assetAmount) external payable nonReentrant whenMintNotPaused noneZeroValue(assetAmount) validMsgValue(assetAmount) onUserAction(true) {
+    (Constants.StableVaultState memory S, uint256 usdOutAmount) = this.calcMintUsdFromStableVault(assetAmount);
     require(S.aar >= S.AARS, "AAR Below AARS");
 
     if (_assetToken == Constants.NATIVE_TOKEN) {
@@ -149,9 +149,9 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
       TokensTransfer.transferTokens(_assetToken, _msgSender(), address(tokenPot), assetAmount);
     }
 
-    uint256 usbSharesAmount = IUsb(_usbToken).mint(_msgSender(), usbOutAmount);
-    _usbTotalSupply = _usbTotalSupply.add(usbOutAmount);
-    emit UsbMinted(_msgSender(), assetAmount, usbOutAmount, usbSharesAmount, S.P_USDC, S.P_USDC_DECIMALS);
+    uint256 usdSharesAmount = IUsd(_usdToken).mint(_msgSender(), usdOutAmount);
+    _usdTotalSupply = _usdTotalSupply.add(usdOutAmount);
+    emit UsdMinted(_msgSender(), assetAmount, usdOutAmount, usdSharesAmount, S.P_USDC, S.P_USDC_DECIMALS);
   }
 
   function mintMarginTokens(uint256 assetAmount) external payable nonReentrant whenMintNotPaused noneZeroValue(assetAmount) validMsgValue(assetAmount) onUserAction(true) {
@@ -169,7 +169,7 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
   }
 
   function mintPairs(uint256 assetAmount) external payable nonReentrant whenMintNotPaused noneZeroValue(assetAmount) validMsgValue(assetAmount) onUserAction(true) {
-    (Constants.StableVaultState memory S, uint256 usbOutAmount, uint256 marginTokenOutAmount) = this.calcMintPairsFromStableVault(assetAmount);
+    (Constants.StableVaultState memory S, uint256 usdOutAmount, uint256 marginTokenOutAmount) = this.calcMintPairsFromStableVault(assetAmount);
 
     if (_assetToken == Constants.NATIVE_TOKEN) {
       TokensTransfer.transferTokens(_assetToken, address(this), address(tokenPot), assetAmount);
@@ -178,21 +178,21 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
       TokensTransfer.transferTokens(_assetToken, _msgSender(), address(tokenPot), assetAmount);
     }
 
-    uint256 usbSharesAmount = IUsb(_usbToken).mint(_msgSender(), usbOutAmount);
-    _usbTotalSupply = _usbTotalSupply.add(usbOutAmount);
-    emit UsbMinted(_msgSender(), assetAmount, usbOutAmount, usbSharesAmount, S.P_USDC, S.P_USDC_DECIMALS);
+    uint256 usdSharesAmount = IUsd(_usdToken).mint(_msgSender(), usdOutAmount);
+    _usdTotalSupply = _usdTotalSupply.add(usdOutAmount);
+    emit UsdMinted(_msgSender(), assetAmount, usdOutAmount, usdSharesAmount, S.P_USDC, S.P_USDC_DECIMALS);
 
     IMarginToken(_marginToken).mint(_msgSender(), marginTokenOutAmount);
     emit MarginTokenMinted(_msgSender(), assetAmount, marginTokenOutAmount, S.P_USDC, S.P_USDC_DECIMALS);
   }
 
-  function redeemByUsb(uint256 usbAmount) external nonReentrant whenRedeemNotPaused noneZeroValue(usbAmount) onUserAction(true) {
-    require(usbAmount <= IUsb(_usbToken).balanceOf(_msgSender()), "Not enough USB balance");
+  function redeemByUsd(uint256 usdAmount) external nonReentrant whenRedeemNotPaused noneZeroValue(usdAmount) onUserAction(true) {
+    require(usdAmount <= IUsd(_usdToken).balanceOf(_msgSender()), "Not enough zUSD balance");
 
-    (Constants.StableVaultState memory S, , uint256 netRedeemAmount, uint256 feesToTreasury) = this.calcRedeemByUsbFromStableVault(settings, usbAmount);
+    (Constants.StableVaultState memory S, , uint256 netRedeemAmount, uint256 feesToTreasury) = this.calcRedeemByUsdFromStableVault(settings, usdAmount);
 
-    _doRedeem(netRedeemAmount, feesToTreasury, S, usbAmount, 0);
-    emit AssetRedeemedWithUsb(_msgSender(), usbAmount, netRedeemAmount, feesToTreasury, S.P_USDC, S.P_USDC_DECIMALS);
+    _doRedeem(netRedeemAmount, feesToTreasury, S, usdAmount, 0);
+    emit AssetRedeemedWithUsd(_msgSender(), usdAmount, netRedeemAmount, feesToTreasury, S.P_USDC, S.P_USDC_DECIMALS);
   }
 
   function redeemByMarginTokens(uint256 marginTokenAmount) external nonReentrant whenRedeemNotPaused noneZeroValue(marginTokenAmount) onUserAction(true) {
@@ -204,43 +204,43 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
     emit AssetRedeemedWithMarginTokens(_msgSender(), marginTokenAmount, netRedeemAmount, feesToTreasury, S.P_USDC, S.P_USDC_DECIMALS);
   }
 
-  function redeemByPairsWithExpectedUsbAmount(uint256 usbAmount) external nonReentrant whenRedeemNotPaused noneZeroValue(usbAmount) onUserAction(true) {
-    require(usbAmount <= IUsb(_usbToken).balanceOf(_msgSender()), "Not enough USB balance");
+  function redeemByPairsWithExpectedUsdAmount(uint256 usdAmount) external nonReentrant whenRedeemNotPaused noneZeroValue(usdAmount) onUserAction(true) {
+    require(usdAmount <= IUsd(_usdToken).balanceOf(_msgSender()), "Not enough zUSD balance");
 
-    uint256 pairdMarginTokenAmount = this.calcPairdMarginTokenAmountForStableVault(usbAmount);
+    uint256 pairdMarginTokenAmount = this.calcPairdMarginTokenAmountForStableVault(usdAmount);
     require(pairdMarginTokenAmount <= IMarginToken(_marginToken).balanceOf(_msgSender()), "Not enough margin token balance");
 
     (Constants.StableVaultState memory S, , uint256 netRedeemAmount, uint256 feesToTreasury) = this.calcRedeemByPairsAssetAmountForStableVault(settings, pairdMarginTokenAmount);
-    _doRedeem(netRedeemAmount, feesToTreasury, S, usbAmount, pairdMarginTokenAmount);
+    _doRedeem(netRedeemAmount, feesToTreasury, S, usdAmount, pairdMarginTokenAmount);
 
-    emit AssetRedeemedWithPairs(_msgSender(), usbAmount, pairdMarginTokenAmount, netRedeemAmount, feesToTreasury, S.P_USDC, S.P_USDC_DECIMALS);
+    emit AssetRedeemedWithPairs(_msgSender(), usdAmount, pairdMarginTokenAmount, netRedeemAmount, feesToTreasury, S.P_USDC, S.P_USDC_DECIMALS);
   }
 
   function redeemByPairsWithExpectedMarginTokenAmount(uint256 marginTokenAmount) external nonReentrant whenRedeemNotPaused noneZeroValue(marginTokenAmount) onUserAction(true) {
     require(marginTokenAmount <= IMarginToken(_marginToken).balanceOf(_msgSender()), "Not enough margin token balance");
     
-    uint256 pairedUSBAmount = this.calcPairedUsbAmountForStableVault(marginTokenAmount);
-    require(pairedUSBAmount <= IUsb(_usbToken).balanceOf(_msgSender()), "Not enough USB balance");
+    uint256 pairedUsdAmount = this.calcPairedUsdAmountForStableVault(marginTokenAmount);
+    require(pairedUsdAmount <= IUsd(_usdToken).balanceOf(_msgSender()), "Not enough zUSD balance");
 
     (Constants.StableVaultState memory S, , uint256 netRedeemAmount, uint256 feesToTreasury) = this.calcRedeemByPairsAssetAmountForStableVault(settings, marginTokenAmount);
-    _doRedeem(netRedeemAmount, feesToTreasury, S, pairedUSBAmount, marginTokenAmount);
+    _doRedeem(netRedeemAmount, feesToTreasury, S, pairedUsdAmount, marginTokenAmount);
 
-    emit AssetRedeemedWithPairs(_msgSender(), pairedUSBAmount, marginTokenAmount, netRedeemAmount, feesToTreasury, S.P_USDC, S.P_USDC_DECIMALS);
+    emit AssetRedeemedWithPairs(_msgSender(), pairedUsdAmount, marginTokenAmount, netRedeemAmount, feesToTreasury, S.P_USDC, S.P_USDC_DECIMALS);
   }
 
-  function usbToMarginTokens(uint256 usbAmount) external nonReentrant whenUsbToMarginTokensNotPaused noneZeroValue(usbAmount) onUserAction(false) {  
-    require(usbAmount <= IUsb(_usbToken).balanceOf(_msgSender()), "Not enough USB balance");
+  function usdToMarginTokens(uint256 usdAmount) external nonReentrant whenUsdToMarginTokensNotPaused noneZeroValue(usdAmount) onUserAction(false) {  
+    require(usdAmount <= IUsd(_usdToken).balanceOf(_msgSender()), "Not enough zUSD balance");
 
-    (Constants.StableVaultState memory S, uint256 marginTokenOut) = this.calcUsbToMarginTokensForStableVault(settings, usbAmount);
+    (Constants.StableVaultState memory S, uint256 marginTokenOut) = this.calcUsdToMarginTokensForStableVault(settings, usdAmount);
 
-    uint256 usbSharesAmount = IUsb(_usbToken).burn(_msgSender(), usbAmount);
-    _usbTotalSupply = _usbTotalSupply.sub(usbAmount);
-    emit UsbBurned(_msgSender(), usbAmount, usbSharesAmount, S.P_USDC, S.P_USDC_DECIMALS);
+    uint256 usdSharesAmount = IUsd(_usdToken).burn(_msgSender(), usdAmount);
+    _usdTotalSupply = _usdTotalSupply.sub(usdAmount);
+    emit UsdBurned(_msgSender(), usdAmount, usdSharesAmount, S.P_USDC, S.P_USDC_DECIMALS);
 
     IMarginToken(_marginToken).mint(_msgSender(), marginTokenOut);
     emit MarginTokenMinted(_msgSender(), 0, marginTokenOut, S.P_USDC, S.P_USDC_DECIMALS);
 
-    emit UsbToMarginTokens(_msgSender(), usbAmount, marginTokenOut, S.P_USDC, S.P_USDC_DECIMALS);
+    emit UsdToMarginTokens(_msgSender(), usdAmount, marginTokenOut, S.P_USDC, S.P_USDC_DECIMALS);
   }
 
   /* ========== RESTRICTED FUNCTIONS ========== */
@@ -265,14 +265,14 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
     emit RedeemUnpaused();
   }
 
-  function pauseUsbToMarginTokens() external nonReentrant onlyOwner {
-    _usbToMarginTokensPaused = true;
-    emit UsbToMarginTokensPaused();
+  function pauseUsdToMarginTokens() external nonReentrant onlyOwner {
+    _usdToMarginTokensPaused = true;
+    emit UsdToMarginTokensPaused();
   }
 
-  function unpauseUsbToMarginTokens() external nonReentrant onlyOwner {
-    _usbToMarginTokensPaused = false;
-    emit UsbToMarginTokensUnpaused();
+  function unpauseUsdToMarginTokens() external nonReentrant onlyOwner {
+    _usdToMarginTokensPaused = false;
+    emit UsdToMarginTokensUnpaused();
   }
 
   function updatePriceFeed(address _assetTokenPriceFeed_) external nonReentrant onlyOwner {
@@ -280,7 +280,7 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
     priceFeed = IPriceFeed(_assetTokenPriceFeed_);
   }
 
-  function _doRedeem(uint256 netRedeemAmount, uint256 feesToTreasury, Constants.StableVaultState memory S, uint256 usbAmount, uint256 marginTokenAmount) internal {
+  function _doRedeem(uint256 netRedeemAmount, uint256 feesToTreasury, Constants.StableVaultState memory S, uint256 usdAmount, uint256 marginTokenAmount) internal {
     require(netRedeemAmount.add(feesToTreasury) <= tokenPot.balance(_assetToken), "Not enough asset balance");
 
     if (netRedeemAmount > 0) {
@@ -291,10 +291,10 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
       tokenPot.withdraw(settings.treasury(), _assetToken, feesToTreasury);
     }
     
-    if (usbAmount > 0) {
-      uint256 usbBurnShares = IUsb(_usbToken).burn(_msgSender(), usbAmount);
-      _usbTotalSupply = _usbTotalSupply.sub(usbAmount);
-      emit UsbBurned(_msgSender(), usbAmount, usbBurnShares, S.P_USDC, S.P_USDC_DECIMALS);
+    if (usdAmount > 0) {
+      uint256 usdBurnShares = IUsd(_usdToken).burn(_msgSender(), usdAmount);
+      _usdTotalSupply = _usdTotalSupply.sub(usdAmount);
+      emit UsdBurned(_msgSender(), usdAmount, usdBurnShares, S.P_USDC, S.P_USDC_DECIMALS);
     }
 
     if (marginTokenAmount > 0) {
@@ -309,10 +309,10 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
     uint256 deltaAssetAmount = timeElapsed.mul(Y).mul(yieldsBaseAssetAmount).div(365 days).div(10 ** settings.decimals());
 
     if (deltaAssetAmount > 0) {
-      (, uint256 usbOutAmount) = this.calcMintUsbFromStableVault(deltaAssetAmount);
-      IUsb(_usbToken).rebase(usbOutAmount);
-      _usbTotalSupply = _usbTotalSupply.add(usbOutAmount);
-      emit YieldsSettlement(usbOutAmount);
+      (, uint256 usdOutAmount) = this.calcMintUsdFromStableVault(deltaAssetAmount);
+      IUsd(_usdToken).rebase(usdOutAmount);
+      _usdTotalSupply = _usdTotalSupply.add(usdOutAmount);
+      emit YieldsSettlement(usdOutAmount);
     }
   }
 
@@ -343,8 +343,8 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
     _;
   }
 
-  modifier whenUsbToMarginTokensNotPaused() {
-    require(!_usbToMarginTokensPaused, "USB to Margin Tokens paused");
+  modifier whenUsdToMarginTokensNotPaused() {
+    require(!_usdToMarginTokensPaused, "zUSD to Margin Tokens paused");
     _;
   }
 
@@ -397,20 +397,20 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
   event MintUnpaused();
   event RedeemPaused();
   event RedeemUnpaused();
-  event UsbToMarginTokensPaused();
-  event UsbToMarginTokensUnpaused();
+  event UsdToMarginTokensPaused();
+  event UsdToMarginTokensUnpaused();
 
-  event UsbMinted(address indexed user, uint256 assetTokenAmount, uint256 usbTokenAmount, uint256 usbSharesAmount, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
+  event UsdMinted(address indexed user, uint256 assetTokenAmount, uint256 usdTokenAmount, uint256 usdSharesAmount, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
   event MarginTokenMinted(address indexed user, uint256 assetTokenAmount, uint256 marginTokenAmount, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
 
-  event UsbBurned(address indexed user, uint256 usbTokenAmount, uint256 usbSharesAmount, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
+  event UsdBurned(address indexed user, uint256 usdTokenAmount, uint256 usdSharesAmount, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
   event MarginTokenBurned(address indexed user, uint256 marginTokenAmount, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
 
-  event AssetRedeemedWithUsb(address indexed user, uint256 usbTokenAmount, uint256 netAssetAmount, uint256 feesToTreasury, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
+  event AssetRedeemedWithUsd(address indexed user, uint256 usdTokenAmount, uint256 netAssetAmount, uint256 feesToTreasury, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
   event AssetRedeemedWithMarginTokens(address indexed user, uint256 marginTokenAmount, uint256 netAssetAmount, uint256 feesToTreasury, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
-  event AssetRedeemedWithPairs(address indexed user, uint256 usbAmount, uint256 marginTokenAmount, uint256 netAssetAmount, uint256 feesToTreasury, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
+  event AssetRedeemedWithPairs(address indexed user, uint256 usdAmount, uint256 marginTokenAmount, uint256 netAssetAmount, uint256 feesToTreasury, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
 
-  event UsbToMarginTokens(address indexed user, uint256 usbAmount, uint256 xTokenAmount, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
+  event UsdToMarginTokens(address indexed user, uint256 usdAmount, uint256 xTokenAmount, uint256 assetTokenPrice, uint256 assetTokenPriceDecimals);
 
-  event YieldsSettlement(uint256 usbYieldsAmount);
+  event YieldsSettlement(uint256 usdYieldsAmount);
 }

@@ -4,7 +4,7 @@ import { ethers } from "hardhat";
 import { power } from '../test/utils';
 import {
   ProtocolSettings__factory,
-  Usb__factory,
+  Usd__factory,
   Vault,
   Vault__factory,
   StableVault,
@@ -51,24 +51,24 @@ async function testEthVault() {
   const vaultQuery = VaultQuery__factory.connect(vaultQueryAddress, provider);
   await dumpVaultState(ethVault, vaultQuery);
 
-  // Check $USB balance
-  const usbToken = Usb__factory.connect(await ethVault.usbToken(), provider);
-  let usbBalance = await usbToken.balanceOf(deployer.address);
-  console.log(`$USB balance: ${ethers.formatUnits(usbBalance, 18)}`);
+  // Check $zUSD balance
+  const Usd = Usd__factory.connect(await ethVault.usdToken(), provider);
+  let usdBalance = await Usd.balanceOf(deployer.address);
+  console.log(`$zUSD balance: ${ethers.formatUnits(usdBalance, 18)}`);
 
   // Check $ETHx balance
   const ethxToken = MarginToken__factory.connect(await ethVault.marginToken(), provider);
   let ethxBalance = await ethxToken.balanceOf(deployer.address);
   console.log(`$ETHx balance: ${ethers.formatUnits(ethxBalance, 18)}`);
 
-  // Redeem 10 $USB
-  const usbAmount = ethers.parseUnits('10', 18);
-  const pairedEthxAmount = await vaultQuery.calcPairdMarginTokenAmount(await ethVault.getAddress(), usbAmount);
-  console.log(`Redeem ${ethers.formatUnits(usbAmount, 18)} $USB, paired ${ethers.formatUnits(pairedEthxAmount, 18)} $ETHx`);
-  trans = await ethVault.connect(deployer).redeemByPairsWithExpectedUsbAmount(usbAmount, {gasPrice});
+  // Redeem 10 $zUSD
+  const usdAmount = ethers.parseUnits('10', 18);
+  const pairedEthxAmount = await vaultQuery.calcPairdMarginTokenAmount(await ethVault.getAddress(), usdAmount);
+  console.log(`Redeem ${ethers.formatUnits(usdAmount, 18)} $zUSD, paired ${ethers.formatUnits(pairedEthxAmount, 18)} $ETHx`);
+  trans = await ethVault.connect(deployer).redeemByPairsWithExpectedUsdAmount(usdAmount, {gasPrice});
   await trans.wait();
-  usbBalance = await usbToken.balanceOf(deployer.address);
-  console.log(`$USB balance: ${ethers.formatUnits(usbBalance, 18)}`);
+  usdBalance = await Usd.balanceOf(deployer.address);
+  console.log(`$zUSD balance: ${ethers.formatUnits(usdBalance, 18)}`);
   ethxBalance = await ethxToken.balanceOf(deployer.address);
   console.log(`$ETHx balance: ${ethers.formatUnits(ethxBalance, 18)}`);
 }
@@ -78,16 +78,16 @@ async function dumpVaultState(vault: Vault | Vault | StableVault | StableVault, 
 
   const assetTokenERC20 = ERC20__factory.connect(await vault.assetToken(), provider);
   const assetSymbol = (await vault.assetToken() == nativeTokenAddress) ? 'ETH' : await assetTokenERC20.symbol();
-  const usbToken = Usb__factory.connect(await vault.usbToken(), provider);
-  const marginToken = Usb__factory.connect(await vault.marginToken(), provider);
+  const Usd = Usd__factory.connect(await vault.usdToken(), provider);
+  const marginToken = Usd__factory.connect(await vault.marginToken(), provider);
 
   const aar = await vaultQuery.AAR(await vault.getAddress());
   const AAR = (aar == ethers.MaxUint256) ? 'MaxUint256' : ethers.formatUnits(aar, await vault.AARDecimals());
 
   console.log(`$${assetSymbol} Vault:`);
   console.log(`  M_${assetSymbol}: ${ethers.formatUnits(await vault.assetBalance(), 18)}`);
-  console.log(`  M_USB: ${ethers.formatUnits(await usbToken.totalSupply(), 18)}`);
-  console.log(`  M_USB_${assetSymbol}: ${ethers.formatUnits(await vault.usbTotalSupply(), 18)}`);
+  console.log(`  M_USD: ${ethers.formatUnits(await Usd.totalSupply(), 18)}`);
+  console.log(`  M_USD_${assetSymbol}: ${ethers.formatUnits(await vault.usdTotalSupply(), 18)}`);
   console.log(`  M_${assetSymbol}x: ${ethers.formatUnits(await marginToken.totalSupply(), 18)}`);
   console.log(`  AAR: ${AAR}`);
   console.log(`  APY: ${ethers.formatUnits(await vault.paramValue(ethers.encodeBytes32String('Y')), await settings.decimals())}`);

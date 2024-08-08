@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 import { expect } from "chai";
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { deployBaseContractsFixture, nativeTokenAddress, VaultMode, ONE_DAY_IN_SECS, expectBigNumberEquals } from "./utils";
-import { MockUsb__factory, MockVault__factory, MarginToken__factory, PtyPoolBuyLow__factory, PtyPoolSellHigh__factory } from "../typechain";
+import { MockUsd__factory, MockVault__factory, MarginToken__factory, PtyPoolBuyLow__factory, PtyPoolSellHigh__factory } from "../typechain";
 
 const { provider } = ethers;
 
@@ -12,11 +12,11 @@ describe("PytPool", () => {
   async function deployAllContractsFixture() {
     const { Alice, Bob, protocol, settings } = await loadFixture(deployBaseContractsFixture);
 
-    const MockUsbFactory = await ethers.getContractFactory("MockUsb");
-    const MockUsb = await MockUsbFactory.deploy(await protocol.getAddress(), await settings.getAddress());
-    const usb = MockUsb__factory.connect(await MockUsb.getAddress(), provider);
+    const MockUsdFactory = await ethers.getContractFactory("MockUsd");
+    const MockUsd = await MockUsdFactory.deploy(await protocol.getAddress(), await settings.getAddress());
+    const usd = MockUsd__factory.connect(await MockUsd.getAddress(), provider);
 
-    let trans = await protocol.connect(Alice).initialize(await usb.getAddress());
+    let trans = await protocol.connect(Alice).initialize(await usd.getAddress());
     await trans.wait();
 
     const MarginTokenFactory = await ethers.getContractFactory("MarginToken");
@@ -24,7 +24,7 @@ describe("PytPool", () => {
     const ethx = MarginToken__factory.connect(await ETHx.getAddress(), provider);
 
     const MockVaultFactory = await ethers.getContractFactory("MockVault");
-    const MockVault = await MockVaultFactory.deploy(nativeTokenAddress, await usb.getAddress(), await ethx.getAddress());
+    const MockVault = await MockVaultFactory.deploy(nativeTokenAddress, await usd.getAddress(), await ethx.getAddress());
     const vault = MockVault__factory.connect(await MockVault.getAddress(), provider);
 
     trans = await ethx.connect(Alice).setVault(await vault.getAddress());
@@ -53,52 +53,52 @@ describe("PytPool", () => {
     trans = await vault.connect(Alice).setPtyPools(await ptyPoolBuyLow.getAddress(), await ptyPoolSellHigh.getAddress());
     await trans.wait();
 
-    return { usb, vault, ethx, ptyPoolBuyLow, ptyPoolSellHigh };
+    return { usd, vault, ethx, ptyPoolBuyLow, ptyPoolSellHigh };
   }
 
   it("PtyPoolBuyLow works", async () => {
     const { Alice, Bob, Caro } = await loadFixture(deployBaseContractsFixture);
-    const { usb, vault, ethx, ptyPoolBuyLow } = await loadFixture(deployAllContractsFixture);
+    const { usd, vault, ethx, ptyPoolBuyLow } = await loadFixture(deployAllContractsFixture);
 
     /**
-     * Mint 1000 $USB to Alice and Bob, and rebase to 4000
+     * Mint 1000 $zUSD to Alice and Bob, and rebase to 4000
      *
-     * USB
+     * zUSD
      *  Shares: total 2000, Alice 1000, Bob 1000
      *  Balance: total 4000, Alice 2000, Bob 2000
      */
-    await expect(usb.connect(Alice).mint(Alice.address, ethers.parseUnits("1000", await usb.decimals()))).not.to.be.rejected;
-    await expect(usb.connect(Alice).mint(Bob.address, ethers.parseUnits("1000", await usb.decimals()))).not.to.be.rejected;
-    await expect(usb.connect(Alice).rebase(ethers.parseUnits("2000", await usb.decimals()))).not.to.be.rejected;
-    expect(await usb.balanceOf(Alice.address)).to.equal(ethers.parseUnits("2000", await usb.decimals()));
-    expect(await usb.balanceOf(Bob.address)).to.equal(ethers.parseUnits("2000", await usb.decimals()));
+    await expect(usd.connect(Alice).mint(Alice.address, ethers.parseUnits("1000", await usd.decimals()))).not.to.be.rejected;
+    await expect(usd.connect(Alice).mint(Bob.address, ethers.parseUnits("1000", await usd.decimals()))).not.to.be.rejected;
+    await expect(usd.connect(Alice).rebase(ethers.parseUnits("2000", await usd.decimals()))).not.to.be.rejected;
+    expect(await usd.balanceOf(Alice.address)).to.equal(ethers.parseUnits("2000", await usd.decimals()));
+    expect(await usd.balanceOf(Bob.address)).to.equal(ethers.parseUnits("2000", await usd.decimals()));
 
     // Day 0
     const genesisTime = await time.latest();
 
     /**
-     * Alice stakes 200 $USB to PtyPoolBuyLow, and got 200 Pty LP
+     * Alice stakes 200 $zUSD to PtyPoolBuyLow, and got 200 Pty LP
      *
-     * USB
+     * zUSD
      *  Shares: total 2000, Alice 900, Bob 1000, PtyPoolBuyLow 100
      *  Balance: total 4000, Alice 1800, Bob 2000, PtyPoolBuyLow 200
      * PtyPoolBuyLow
      *  LP Shares: total 200, Alice 200
      */
-    await expect(usb.connect(Alice).approve(await ptyPoolBuyLow.getAddress(), ethers.parseUnits("200", await usb.decimals()))).not.to.be
+    await expect(usd.connect(Alice).approve(await ptyPoolBuyLow.getAddress(), ethers.parseUnits("200", await usd.decimals()))).not.to.be
       .rejected;
-    await expect(ptyPoolBuyLow.connect(Alice).stake(ethers.parseUnits("200", await usb.decimals())))
-      .to.emit(usb, "Transfer")
-      .withArgs(Alice.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("200", await usb.decimals()))
-      .to.emit(usb, "TransferShares")
-      .withArgs(Alice.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("100", await usb.decimals()))
+    await expect(ptyPoolBuyLow.connect(Alice).stake(ethers.parseUnits("200", await usd.decimals())))
+      .to.emit(usd, "Transfer")
+      .withArgs(Alice.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("200", await usd.decimals()))
+      .to.emit(usd, "TransferShares")
+      .withArgs(Alice.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("100", await usd.decimals()))
       .to.emit(ptyPoolBuyLow, "Staked")
-      .withArgs(Alice.address, ethers.parseUnits("200", await usb.decimals()));
-    expect(await usb.sharesOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("100", await usb.decimals()));
-    expect(await usb.balanceOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("200", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingBalance(Alice.address)).to.equal(ethers.parseUnits("200", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingShares(Alice.address)).to.equal(ethers.parseUnits("200", await usb.decimals()));
-    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("200", await usb.decimals()));
+      .withArgs(Alice.address, ethers.parseUnits("200", await usd.decimals()));
+    expect(await usd.sharesOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("100", await usd.decimals()));
+    expect(await usd.balanceOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("200", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingBalance(Alice.address)).to.equal(ethers.parseUnits("200", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingShares(Alice.address)).to.equal(ethers.parseUnits("200", await usd.decimals()));
+    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("200", await usd.decimals()));
 
     /**
      * Vault add 100 $ETHx staking yields
@@ -116,9 +116,9 @@ describe("PytPool", () => {
     await time.increaseTo(genesisTime + ONE_DAY_IN_SECS * 1);
 
     /**
-     * USB rebase from 4000 to 8000 ====>
+     * zUSD rebase from 4000 to 8000 ====>
      *
-     * USB
+     * zUSD
      *  Shares: total 2000, Alice 900, Bob 1000, PtyPoolBuyLow 100
      *  Balance: total 8000, Alice 3600, Bob 4000, PtyPoolBuyLow 400
      *
@@ -128,9 +128,9 @@ describe("PytPool", () => {
      *
      * -------------------------
      *
-     * Bob stakes 200 $USB to PtyPoolBuyLow, and got 50 Pty LP  ===>
+     * Bob stakes 200 $zUSD to PtyPoolBuyLow, and got 50 Pty LP  ===>
      *
-     *  USB
+     *  zUSD
      *  Shares: total 2000, Alice 850, Bob 1000, PtyPoolBuyLow 150
      *  Balance: total 8000, Alice 3400, Bob 4000, PtyPoolBuyLow 600
      *
@@ -138,29 +138,29 @@ describe("PytPool", () => {
      *  Total balance: 400 + 200 = 600, Alice 400, Bob 200
      *  LP Shares: total 300, Alice 200, Bob 100
      */
-    await expect(usb.connect(Alice).rebase(ethers.parseUnits("4000", await usb.decimals()))).not.to.be.rejected;
-    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("400", await usb.decimals()));
-    expect(await ptyPoolBuyLow.totalStakingShares()).to.equal(ethers.parseUnits("200", await usb.decimals()));
-    await expect(usb.connect(Bob).approve(await ptyPoolBuyLow.getAddress(), ethers.parseUnits("200", await usb.decimals()))).not.to.be
+    await expect(usd.connect(Alice).rebase(ethers.parseUnits("4000", await usd.decimals()))).not.to.be.rejected;
+    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("400", await usd.decimals()));
+    expect(await ptyPoolBuyLow.totalStakingShares()).to.equal(ethers.parseUnits("200", await usd.decimals()));
+    await expect(usd.connect(Bob).approve(await ptyPoolBuyLow.getAddress(), ethers.parseUnits("200", await usd.decimals()))).not.to.be
       .rejected;
-    await expect(ptyPoolBuyLow.connect(Bob).stake(ethers.parseUnits("200", await usb.decimals())))
-      .to.emit(usb, "Transfer")
-      .withArgs(Bob.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("200", await usb.decimals()))
-      .to.emit(usb, "TransferShares")
-      .withArgs(Bob.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("50", await usb.decimals()))
+    await expect(ptyPoolBuyLow.connect(Bob).stake(ethers.parseUnits("200", await usd.decimals())))
+      .to.emit(usd, "Transfer")
+      .withArgs(Bob.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("200", await usd.decimals()))
+      .to.emit(usd, "TransferShares")
+      .withArgs(Bob.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("50", await usd.decimals()))
       .to.emit(ptyPoolBuyLow, "Staked")
-      .withArgs(Bob.address, ethers.parseUnits("200", await usb.decimals()));
-    expect(await usb.sharesOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("150", await usb.decimals()));
-    expect(await usb.balanceOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("600", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingBalance(Bob.address)).to.equal(ethers.parseUnits("200", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingShares(Bob.address)).to.equal(ethers.parseUnits("100", await usb.decimals()));
-    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("600", await usb.decimals()));
+      .withArgs(Bob.address, ethers.parseUnits("200", await usd.decimals()));
+    expect(await usd.sharesOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("150", await usd.decimals()));
+    expect(await usd.balanceOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("600", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingBalance(Bob.address)).to.equal(ethers.parseUnits("200", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingShares(Bob.address)).to.equal(ethers.parseUnits("100", await usd.decimals()));
+    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("600", await usd.decimals()));
     expect(await ptyPoolBuyLow.earnedStakingYields(Bob.address)).to.equal(ethers.parseUnits("0", await ethx.decimals()));
 
     /**
-     * Alice withdraw 200 $USB (50 shares) from PtyPoolBuyLow  ====>
+     * Alice withdraw 200 $zUSD (50 shares) from PtyPoolBuyLow  ====>
      *
-     * USB
+     * zUSD
      *  Shares: total 2000, Alice 850 -> 900, Bob 1000, PtyPoolBuyLow 150 -> 100
      *  Balance: total 8000, Alice 3400 -> 3600, Bob 4000, PtyPoolBuyLow 600 -> 400
      *
@@ -168,18 +168,18 @@ describe("PytPool", () => {
      *  Total balance: 600 -> 400, Alice 400 -> 200, Bob 200
      *  LP Shares: total 300 -> 200, Alice 200 -> 100, Bob 100
      */
-    await expect(ptyPoolBuyLow.connect(Alice).withdraw(ethers.parseUnits("600", await usb.decimals()))).to.be.reverted;
-    await expect(ptyPoolBuyLow.connect(Alice).withdraw(ethers.parseUnits("200", await usb.decimals())))
-      .to.emit(usb, "Transfer")
-      .withArgs(await ptyPoolBuyLow.getAddress(), Alice.address, ethers.parseUnits("200", await usb.decimals()))
-      .to.emit(usb, "TransferShares")
-      .withArgs(await ptyPoolBuyLow.getAddress(), Alice.address, ethers.parseUnits("50", await usb.decimals()))
+    await expect(ptyPoolBuyLow.connect(Alice).withdraw(ethers.parseUnits("600", await usd.decimals()))).to.be.reverted;
+    await expect(ptyPoolBuyLow.connect(Alice).withdraw(ethers.parseUnits("200", await usd.decimals())))
+      .to.emit(usd, "Transfer")
+      .withArgs(await ptyPoolBuyLow.getAddress(), Alice.address, ethers.parseUnits("200", await usd.decimals()))
+      .to.emit(usd, "TransferShares")
+      .withArgs(await ptyPoolBuyLow.getAddress(), Alice.address, ethers.parseUnits("50", await usd.decimals()))
       .to.emit(ptyPoolBuyLow, "Withdrawn")
-      .withArgs(Alice.address, ethers.parseUnits("200", await usb.decimals()));
-    expect(await usb.sharesOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("100", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingBalance(Alice.address)).to.equal(ethers.parseUnits("200", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingShares(Alice.address)).to.equal(ethers.parseUnits("100", await usb.decimals()));
-    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("400", await usb.decimals()));
+      .withArgs(Alice.address, ethers.parseUnits("200", await usd.decimals()));
+    expect(await usd.sharesOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("100", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingBalance(Alice.address)).to.equal(ethers.parseUnits("200", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingShares(Alice.address)).to.equal(ethers.parseUnits("100", await usd.decimals()));
+    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("400", await usd.decimals()));
 
     await time.increaseTo(genesisTime + ONE_DAY_IN_SECS * 2);
 
@@ -199,9 +199,9 @@ describe("PytPool", () => {
     expect(await ptyPoolBuyLow.earnedMatchingYields(Bob.address)).to.equal(ethers.parseUnits("0"));
 
     /**
-     * Vault match 360 $USB (90 shares burned) to 36 $ETH
+     * Vault match 360 $zUSD (90 shares burned) to 36 $ETH
      *
-     * USB
+     * zUSD
      *  Shares: total 2000 - 90 = 1910, Alice 900, Bob 1000, PtyPoolBuyLow 100 - 90 = 10
      *  Balance: total 8000 - 360 = 7640, Alice 3600, Bob 4000, PtyPoolBuyLow 400 - 360 = 40
      *
@@ -228,15 +228,15 @@ describe("PytPool", () => {
       value: ethers.parseUnits("36"),
     });
     await expect(tx).to.changeEtherBalances([Alice.address, await ptyPoolBuyLow.getAddress()], [ethers.parseEther("-36"), ethers.parseEther("36")]);
-    await expect(tx).to.changeTokenBalances(usb, [await ptyPoolBuyLow.getAddress()], [ethers.parseUnits("-360", await usb.decimals())])
+    await expect(tx).to.changeTokenBalances(usd, [await ptyPoolBuyLow.getAddress()], [ethers.parseUnits("-360", await usd.decimals())])
     await expect(tx).to.emit(ptyPoolBuyLow, "MatchedTokensAdded").withArgs(ethers.parseUnits("36"));
-    expect(await usb.sharesOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("10", await usb.decimals()));
-    expect(await usb.balanceOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("40", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingBalance(Alice.address)).to.equal(ethers.parseUnits("20", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingShares(Alice.address)).to.equal(ethers.parseUnits("100", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingBalance(Bob.address)).to.equal(ethers.parseUnits("20", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingShares(Bob.address)).to.equal(ethers.parseUnits("100", await usb.decimals()));
-    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("40", await usb.decimals()));
+    expect(await usd.sharesOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("10", await usd.decimals()));
+    expect(await usd.balanceOf(await ptyPoolBuyLow.getAddress())).to.equal(ethers.parseUnits("40", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingBalance(Alice.address)).to.equal(ethers.parseUnits("20", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingShares(Alice.address)).to.equal(ethers.parseUnits("100", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingBalance(Bob.address)).to.equal(ethers.parseUnits("20", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingShares(Bob.address)).to.equal(ethers.parseUnits("100", await usd.decimals()));
+    expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(ethers.parseUnits("40", await usd.decimals()));
     expect(await ptyPoolBuyLow.earnedMatchingYields(Alice.address)).to.equal(ethers.parseUnits("10"));
     expect(await ptyPoolBuyLow.earnedMatchingYields(Bob.address)).to.equal(ethers.parseUnits("10"));
     expect(await ptyPoolBuyLow.earnedMatchedToken(Alice.address)).to.equal(ethers.parseUnits("18"));
@@ -260,10 +260,10 @@ describe("PytPool", () => {
     expect(await ptyPoolBuyLow.earnedMatchedToken(Alice.address)).to.equal(ethers.parseUnits("0"));
 
     /**
-     * Bob transfer 200 $USB (50 shares) to Caro;
-     * Caro stakes 40 $USB (10 shares) to PtyPoolBuyLow, and got 50 Pty LP
+     * Bob transfer 200 $zUSD (50 shares) to Caro;
+     * Caro stakes 40 $zUSD (10 shares) to PtyPoolBuyLow, and got 50 Pty LP
      *
-     * USB
+     * zUSD
      *  Shares: total 1910, Alice 900, Bob 1000 - 50 = 950, Caro: 50, PtyPoolBuyLow 10
      *  Balance: total 7640, Alice 3600, Bob 4000 - 200 = 3800, Caro: 200, PtyPoolBuyLow 40
      *
@@ -271,28 +271,28 @@ describe("PytPool", () => {
      *  Total balance: 40 + 200 = 240, Alice 20, Bob 20, Caro 40
      *  LP Shares: total 200 + 200 = 400, Alice 100, Bob 100, Caro 200
      */
-    await expect(usb.connect(Bob).transfer(Caro.address, ethers.parseUnits("200", await usb.decimals()))).to.changeTokenBalances(
-      usb,
+    await expect(usd.connect(Bob).transfer(Caro.address, ethers.parseUnits("200", await usd.decimals()))).to.changeTokenBalances(
+      usd,
       [Bob.address, Caro.address],
-      [ethers.parseUnits("-200", await usb.decimals()), ethers.parseUnits("200", await usb.decimals())]
+      [ethers.parseUnits("-200", await usd.decimals()), ethers.parseUnits("200", await usd.decimals())]
     );
-    await expect(usb.connect(Caro).approve(await ptyPoolBuyLow.getAddress(), ethers.parseUnits("40", await usb.decimals()))).not.to.be
+    await expect(usd.connect(Caro).approve(await ptyPoolBuyLow.getAddress(), ethers.parseUnits("40", await usd.decimals()))).not.to.be
       .rejected;
-    tx = ptyPoolBuyLow.connect(Caro).stake(ethers.parseUnits("40", await usb.decimals()));
+    tx = ptyPoolBuyLow.connect(Caro).stake(ethers.parseUnits("40", await usd.decimals()));
     await expect(tx)
       .to.changeTokenBalances(
-        usb,
+        usd,
         [Caro.address, await ptyPoolBuyLow.getAddress()],
-        [ethers.parseUnits("-40", await usb.decimals()), ethers.parseUnits("40", await usb.decimals())]
+        [ethers.parseUnits("-40", await usd.decimals()), ethers.parseUnits("40", await usd.decimals())]
       );
-    await expect(tx).to.emit(usb, "Transfer")
-      .withArgs(Caro.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("40", await usb.decimals()))
-      .to.emit(usb, "TransferShares")
-      .withArgs(Caro.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("10", await usb.decimals()))
+    await expect(tx).to.emit(usd, "Transfer")
+      .withArgs(Caro.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("40", await usd.decimals()))
+      .to.emit(usd, "TransferShares")
+      .withArgs(Caro.address, await ptyPoolBuyLow.getAddress(), ethers.parseUnits("10", await usd.decimals()))
       .to.emit(ptyPoolBuyLow, "Staked")
-      .withArgs(Caro.address, ethers.parseUnits("40", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingShares(Caro.address)).to.equal(ethers.parseUnits("200", await usb.decimals()));
-    expect(await ptyPoolBuyLow.userStakingBalance(Caro.address)).to.equal(ethers.parseUnits("40", await usb.decimals()));
+      .withArgs(Caro.address, ethers.parseUnits("40", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingShares(Caro.address)).to.equal(ethers.parseUnits("200", await usd.decimals()));
+    expect(await ptyPoolBuyLow.userStakingBalance(Caro.address)).to.equal(ethers.parseUnits("40", await usd.decimals()));
 
     /**
      * Vault add 40 $ETHx staking yields
@@ -316,7 +316,7 @@ describe("PytPool", () => {
 
   it("PtyPoolSellHigh works", async () => {
     const { Alice, Bob, Caro } = await loadFixture(deployBaseContractsFixture);
-    const { usb, vault, ethx, ptyPoolSellHigh } = await loadFixture(deployAllContractsFixture);
+    const { usd, vault, ethx, ptyPoolSellHigh } = await loadFixture(deployAllContractsFixture);
 
     /**
      * Alice stakes 20 $ETH to ptyPoolSellHigh, and got 20 Pty LP; Bob stakes 10 $ETH to ptyPoolSellHigh, and got 10 Pty LP
@@ -329,13 +329,13 @@ describe("PytPool", () => {
       .to.changeEtherBalances([Alice.address, await ptyPoolSellHigh.getAddress()], [ethers.parseEther("-20"), ethers.parseEther("20")]);
     await expect(tx)
       .to.emit(ptyPoolSellHigh, "Staked")
-      .withArgs(Alice.address, ethers.parseUnits("20", await usb.decimals()));
+      .withArgs(Alice.address, ethers.parseUnits("20", await usd.decimals()));
     tx = ptyPoolSellHigh.connect(Bob).stake(ethers.parseEther("10"), { value: ethers.parseUnits("10") });
     await expect(tx)
       .to.changeEtherBalances([Bob.address, await ptyPoolSellHigh.getAddress()], [ethers.parseEther("-10"), ethers.parseEther("10")]);
     await expect(tx)
       .to.emit(ptyPoolSellHigh, "Staked")
-      .withArgs(Bob.address, ethers.parseUnits("10", await usb.decimals()));
+      .withArgs(Bob.address, ethers.parseUnits("10", await usd.decimals()));
     expect(await ptyPoolSellHigh.userStakingShares(Alice.address)).to.equal(ethers.parseEther("20"));
     expect(await ptyPoolSellHigh.userStakingBalance(Alice.address)).to.equal(ethers.parseEther("20"));
     expect(await ptyPoolSellHigh.userStakingShares(Bob.address)).to.equal(ethers.parseEther("10"));
@@ -373,50 +373,50 @@ describe("PytPool", () => {
     /**
      * Rebase 1 $ETH to 1.1 $ETH (By transfering 3.3 $ETH to PtyPoolSellHigh)
      * 
-     * Vault match 27 $ETH to 270 $USB, remaining 33 * 1.1 - 27 = 9.3 $ETH
+     * Vault match 27 $ETH to 270 $zUSD, remaining 33 * 1.1 - 27 = 9.3 $ETH
      *
      * ptyPoolSellHigh
      *  LP Shares: total 30, Alice 20, Bob 10
      * Staking Balances ($ETH)
      *  Alice: 22, Bob: 11
-     * Matched Tokens ($USB)
+     * Matched Tokens ($zUSD)
      *  Total: 270, Alice: 180, Bob: 90
      * Matching Yields ($ETHx) also distributed, so:
      *  Alice: 20, Bob: 10
      */
     await expect(Alice.sendTransaction({ to: await ptyPoolSellHigh.getAddress(), value: ethers.parseEther("3.3") })).not.to.be.rejected;
     // await expect(
-    //   vault.connect(Alice).mockMatchedPtyPoolSellHigh(ethers.parseEther("27"), ethers.parseUnits("270", await usb.decimals()))
+    //   vault.connect(Alice).mockMatchedPtyPoolSellHigh(ethers.parseEther("27"), ethers.parseUnits("270", await usd.decimals()))
     // ).to.be.rejectedWith("Vault not in adjustment above AARU mode");
     await expect(vault.connect(Alice).mockSetVaultMode(VaultMode.AdjustmentAboveAARU)).not.to.be.rejected;
-    tx = vault.connect(Alice).mockMatchedPtyPoolSellHigh(ethers.parseEther("27"), ethers.parseUnits("270", await usb.decimals()));
+    tx = vault.connect(Alice).mockMatchedPtyPoolSellHigh(ethers.parseEther("27"), ethers.parseUnits("270", await usd.decimals()));
     await expect(tx)
       .to.changeEtherBalances([await vault.getAddress(), await ptyPoolSellHigh.getAddress()], [ethers.parseEther("27"), ethers.parseEther("-27")]);
     await expect(tx)
-      .to.changeTokenBalances(usb, [await ptyPoolSellHigh.getAddress()], [ethers.parseUnits("270", await usb.decimals())]);
+      .to.changeTokenBalances(usd, [await ptyPoolSellHigh.getAddress()], [ethers.parseUnits("270", await usd.decimals())]);
     await expect(tx)
       .to.emit(ptyPoolSellHigh, "MatchedTokensAdded")
-      .withArgs(ethers.parseUnits("270", await usb.decimals()));
+      .withArgs(ethers.parseUnits("270", await usd.decimals()));
     expect(await ptyPoolSellHigh.totalStakingBalance()).to.equal(ethers.parseEther("9.3"));
     expect(await ptyPoolSellHigh.earnedMatchingYields(Alice.address)).to.equal(ethers.parseUnits("20", await ethx.decimals()));
     expect(await ptyPoolSellHigh.earnedMatchingYields(Bob.address)).to.equal(ethers.parseUnits("10", await ethx.decimals()));
-    expect(await ptyPoolSellHigh.earnedMatchedToken(Alice.address)).to.equal(ethers.parseUnits("180", await usb.decimals()));
-    expect(await ptyPoolSellHigh.earnedMatchedToken(Bob.address)).to.equal(ethers.parseUnits("90", await usb.decimals()));
+    expect(await ptyPoolSellHigh.earnedMatchedToken(Alice.address)).to.equal(ethers.parseUnits("180", await usd.decimals()));
+    expect(await ptyPoolSellHigh.earnedMatchedToken(Bob.address)).to.equal(ethers.parseUnits("90", await usd.decimals()));
 
     /**
-     * Rebase 1 $USB to 1.1 $USB (By rebasing $USB).
+     * Rebase 1 $zUSD to 1.1 $zUSD (By rebasing $zUSD).
      * 
-     * Matched Tokens ($USB)
+     * Matched Tokens ($zUSD)
      *  Total: 270 * 1.1 = 297, Alice: 180 * 1.1 = 198, Bob: 90 * 1.1 = 99
      * 
      * Staking Balances ($ETH)
      *  Total: 9.3, Alice: 6.2, Bob: 3.1
      */
-    expect(await usb.balanceOf(await ptyPoolSellHigh.getAddress())).to.equal(ethers.parseUnits("270", await usb.decimals()));
-    await expect(usb.connect(Alice).rebase((await usb.totalSupply()) / 10n)).not.to.be.rejected;
-    expect(await usb.balanceOf(await ptyPoolSellHigh.getAddress())).to.equal(ethers.parseUnits("297", await usb.decimals()));
-    expect(await ptyPoolSellHigh.earnedMatchedToken(Alice.address)).to.equal(ethers.parseUnits("198", await usb.decimals()));
-    expect(await ptyPoolSellHigh.earnedMatchedToken(Bob.address)).to.equal(ethers.parseUnits("99", await usb.decimals()));
+    expect(await usd.balanceOf(await ptyPoolSellHigh.getAddress())).to.equal(ethers.parseUnits("270", await usd.decimals()));
+    await expect(usd.connect(Alice).rebase((await usd.totalSupply()) / 10n)).not.to.be.rejected;
+    expect(await usd.balanceOf(await ptyPoolSellHigh.getAddress())).to.equal(ethers.parseUnits("297", await usd.decimals()));
+    expect(await ptyPoolSellHigh.earnedMatchedToken(Alice.address)).to.equal(ethers.parseUnits("198", await usd.decimals()));
+    expect(await ptyPoolSellHigh.earnedMatchedToken(Bob.address)).to.equal(ethers.parseUnits("99", await usd.decimals()));
 
     expect(await ptyPoolSellHigh.totalStakingBalance()).to.equal(ethers.parseEther("9.3"));
     expect(await ptyPoolSellHigh.userStakingBalance(Alice.address)).to.equal(ethers.parseEther("6.2"));
@@ -431,7 +431,7 @@ describe("PytPool", () => {
      * 
      * Staking Balances ($ETH)
      *  Alice: 6.2 => 0, Bob: 3.1
-     * Matched Tokens ($USB)
+     * Matched Tokens ($zUSD)
      *  Alice: 198 => 0, Bob: 99
      * Matching Yields ($ETHx) also distributed, so:
      *  Alice: 20 => 0, Bob: 10
@@ -441,9 +441,9 @@ describe("PytPool", () => {
       .to.changeEtherBalances([Alice.address, await ptyPoolSellHigh.getAddress()], [ethers.parseEther("6.2"), ethers.parseEther("-6.2")]);
     await expect(tx)
       .to.changeTokenBalances(
-        usb,
+        usd,
         [Alice.address, await ptyPoolSellHigh.getAddress()],
-        [ethers.parseUnits("198", await usb.decimals()), ethers.parseUnits("-198", await usb.decimals())]
+        [ethers.parseUnits("198", await usd.decimals()), ethers.parseUnits("-198", await usd.decimals())]
       );
     await expect(tx)
       .to.changeTokenBalances(
@@ -455,7 +455,7 @@ describe("PytPool", () => {
       .to.emit(ptyPoolSellHigh, "Withdrawn")
       .withArgs(Alice.address, ethers.parseEther("6.2"))
       .to.emit(ptyPoolSellHigh, "MatchedTokenPaid")
-      .withArgs(Alice.address, ethers.parseUnits("198", await usb.decimals()))
+      .withArgs(Alice.address, ethers.parseUnits("198", await usd.decimals()))
       .to.emit(ptyPoolSellHigh, "MatchingYieldsPaid")
       .withArgs(Alice.address, ethers.parseUnits("20", await ethx.decimals()));
 
@@ -469,22 +469,22 @@ describe("PytPool", () => {
       .to.changeEtherBalances([Caro.address, await ptyPoolSellHigh.getAddress()], [ethers.parseEther("-15.5"), ethers.parseEther("15.5")]);
     await expect(tx)
       .to.emit(ptyPoolSellHigh, "Staked")
-      .withArgs(Caro.address, ethers.parseUnits("15.5", await usb.decimals()));
+      .withArgs(Caro.address, ethers.parseUnits("15.5", await usd.decimals()));
     expect(await ptyPoolSellHigh.userStakingShares(Caro.address)).to.equal(ethers.parseEther("50"));
   });
 
   it("Withdraw all works for PtyPoolBuyLow", async () => {
     const { Alice, Bob } = await loadFixture(deployBaseContractsFixture);
-    const { usb, vault, ethx, ptyPoolBuyLow } = await loadFixture(deployAllContractsFixture);
+    const { usd, vault, ethx, ptyPoolBuyLow } = await loadFixture(deployAllContractsFixture);
 
-    await expect(usb.connect(Alice).mint(Alice.address, ethers.parseUnits("1000", await usb.decimals()))).not.to.be.rejected;
-    await expect(usb.connect(Alice).mint(Bob.address, ethers.parseUnits("500", await usb.decimals()))).not.to.be.rejected;
-    await expect(usb.connect(Alice).rebase(ethers.parseUnits("100", await usb.decimals()))).not.to.be.rejected;
-    expectBigNumberEquals(await usb.balanceOf(Alice.address), ethers.parseUnits("1066.66666667", await usb.decimals()));
-    expectBigNumberEquals(await usb.balanceOf(Bob.address), ethers.parseUnits("533.333333333", await usb.decimals()));
+    await expect(usd.connect(Alice).mint(Alice.address, ethers.parseUnits("1000", await usd.decimals()))).not.to.be.rejected;
+    await expect(usd.connect(Alice).mint(Bob.address, ethers.parseUnits("500", await usd.decimals()))).not.to.be.rejected;
+    await expect(usd.connect(Alice).rebase(ethers.parseUnits("100", await usd.decimals()))).not.to.be.rejected;
+    expectBigNumberEquals(await usd.balanceOf(Alice.address), ethers.parseUnits("1066.66666667", await usd.decimals()));
+    expectBigNumberEquals(await usd.balanceOf(Bob.address), ethers.parseUnits("533.333333333", await usd.decimals()));
 
-    let stakeAmount = ethers.parseUnits("971.333216134", await usb.decimals());
-    await expect(usb.connect(Alice).approve(await ptyPoolBuyLow.getAddress(), stakeAmount)).not.to.be.rejected;
+    let stakeAmount = ethers.parseUnits("971.333216134", await usd.decimals());
+    await expect(usd.connect(Alice).approve(await ptyPoolBuyLow.getAddress(), stakeAmount)).not.to.be.rejected;
     await expect(ptyPoolBuyLow.connect(Alice).stake(stakeAmount)).not.to.be.rejected;
 
     await expect(vault.connect(Alice).mockAddStakingYieldsToPtyPoolBuyLow(ethers.parseUnits("0.000000024238965803", await ethx.decimals()))).not.to.be.rejected;
@@ -503,8 +503,8 @@ describe("PytPool", () => {
     expect(await ptyPoolBuyLow.totalStakingShares()).to.equal(0);
     // expect(await ptyPoolBuyLow.totalStakingBalance()).to.equal(0);
 
-    stakeAmount = ethers.parseUnits("100.13849166", await usb.decimals());
-    await expect(usb.connect(Bob).approve(await ptyPoolBuyLow.getAddress(), stakeAmount)).not.to.be.rejected;
+    stakeAmount = ethers.parseUnits("100.13849166", await usd.decimals());
+    await expect(usd.connect(Bob).approve(await ptyPoolBuyLow.getAddress(), stakeAmount)).not.to.be.rejected;
     await expect(ptyPoolBuyLow.connect(Bob).stake(stakeAmount)).not.to.be.rejected;
     expect(await ptyPoolBuyLow.totalStakingShares()).to.be.gt(0);
   });

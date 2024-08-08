@@ -5,7 +5,7 @@ classDiagram
 note for ZooProtocol "Entry point of protocol"
 class ZooProtocol {
   +address owner
-  +$Usb usb
+  +$Usd Usd
   +ProtocolSettings settings
   +Vault[] vaults
   +addVault(vault)
@@ -18,7 +18,7 @@ class ProtocolSettings {
   +upsertParamConfig(default, min, max)
   +updateVaultParamValue(vault, param, value)
 }
-class Usb {
+class Usd {
   +map userShares
   +uint256 totalShares
   +sharesOf(user)
@@ -41,7 +41,7 @@ namespace VolatileVault {
     +address ptyPoolSellHigh
     +mint(amount)
     +redeem(amount)
-    +usbToLeveragedTokens(amount)
+    +usdToMarginTokens(amount)
   }
   class EthPriceFeed {
     +latestPrice()
@@ -66,11 +66,11 @@ class StableVault {
   +address usdbx
   +mint(amount)
   +redeem(amount)
-  +usbToLeveragedTokens(amount)
+  +usdToMarginTokens(amount)
 }
 
 ZooProtocol --> ProtocolSettings
-ZooProtocol --> Usb
+ZooProtocol --> Usd
 ZooProtocol "1" --> "*" Vault
 Vault --> EthPriceFeed
 Vault --> ETHx

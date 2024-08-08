@@ -8,7 +8,7 @@ import {
   MarginToken__factory,
   ProtocolSettings__factory,
   MockRebasableERC20__factory,
-  Usb__factory,
+  Usd__factory,
   VaultCalculator__factory,
   StableVaultCalculator__factory,
   ZooProtocol__factory,
@@ -81,10 +81,10 @@ export async function deployBaseContractsFixture() {
   const ProtocolSettings = await ProtocolSettingsFactory.deploy(await protocol.getAddress(), Ivy.address);
   const settings = ProtocolSettings__factory.connect(await ProtocolSettings.getAddress(), provider);
 
-  const USBFactory = await ethers.getContractFactory("Usb");
-  // expect(USBFactory.bytecode.length / 2).lessThan(maxContractSize);
-  const Usb = await USBFactory.deploy(await protocol.getAddress(), await settings.getAddress());
-  const usb = Usb__factory.connect(await Usb.getAddress(), provider);
+  const USDFactory = await ethers.getContractFactory("Usd");
+  // expect(USDFactory.bytecode.length / 2).lessThan(maxContractSize);
+  const Usd = await USDFactory.deploy(await protocol.getAddress(), await settings.getAddress());
+  const usd = Usd__factory.connect(await Usd.getAddress(), provider);
 
   const MockPriceFeedFactory = await ethers.getContractFactory("MockPriceFeed");
   const EthPriceFeedMock = await MockPriceFeedFactory.deploy();
@@ -99,7 +99,7 @@ export async function deployBaseContractsFixture() {
   const UsdcPriceFeedMock = await MockPriceFeedFactory.deploy();
   const usdcPriceFeed = MockPriceFeed__factory.connect(await UsdcPriceFeedMock.getAddress(), provider);
 
-  // let trans = await protocol.connect(Alice).initialize(await usb.getAddress());
+  // let trans = await protocol.connect(Alice).initialize(await Usd.getAddress());
   // await trans.wait();
 
   const VaultCalculatorFactory = await ethers.getContractFactory("VaultCalculator");
@@ -136,7 +136,7 @@ export async function deployBaseContractsFixture() {
     wbtc,
     stETH,
     usdc,
-    usb,
+    usd,
     protocol,
     settings,
     vaultCalculator,
@@ -244,7 +244,7 @@ export async function deployAllContractsFixture() {
     Alice,
     Bob,
     Caro,
-    usb,
+    usd,
     stETH,
     wbtc,
     usdc,
@@ -259,7 +259,7 @@ export async function deployAllContractsFixture() {
     usdcPriceFeed
   } = await deployBaseContractsFixture();
 
-  let trans = await protocol.connect(Alice).initialize(await usb.getAddress());
+  let trans = await protocol.connect(Alice).initialize(await usd.getAddress());
   await trans.wait();
 
   let res = await deployVault(protocol, settings, ethPriceFeed, "Vault", "PtyPoolBuyLow", "PtyPoolSellHigh", nativeTokenAddress, "Zoo Leveraged ETH", "ETHx", {
@@ -294,7 +294,7 @@ export async function deployAllContractsFixture() {
     Alice,
     Bob,
     Caro,
-    usb,
+    usd,
     stETH,
     wbtc,
     protocol,
@@ -330,7 +330,7 @@ export async function dumpVaultState(vault: Vault, vaultQuery: VaultQuery) {
   const protocol = ZooProtocol__factory.connect(await vault.protocol(), provider);
   const settings = ProtocolSettings__factory.connect(await vault.settings(), provider);
 
-  const usbToken = Usb__factory.connect(await protocol.usbToken(), provider);
+  const Usd = Usd__factory.connect(await protocol.usdToken(), provider);
   const mode = await vault.vaultMode();
 
   const state = await vaultQuery.getVaultState(await vault.getAddress());
@@ -340,8 +340,8 @@ export async function dumpVaultState(vault: Vault, vaultQuery: VaultQuery) {
     M_ETH: state.M_ETH,
     P_ETH: state.P_ETH,
     P_ETH_DECIMALS: state.P_ETH_DECIMALS,
-    M_USB: await usbToken.totalSupply(),
-    M_USB_ETH: state.M_USB_ETH,
+    M_USD: await Usd.totalSupply(),
+    M_USD_ETH: state.M_USD_ETH,
     M_ETHx: state.M_ETHx,
     AAR: state.aar,
     AART: state.AART,
@@ -362,7 +362,7 @@ export async function dumpStableVaultState(vault: StableVault, vaultQuery: Vault
 
   const assetTokenERC20 = ERC20__factory.connect(await vault.assetToken(), provider);
   const assetSymbol = (await vault.assetToken()) == nativeTokenAddress ? "ETH" : await assetTokenERC20.symbol();
-  const usbToken = Usb__factory.connect(await protocol.usbToken(), provider);
+  const Usd = Usd__factory.connect(await protocol.usdToken(), provider);
   // const mode = await vault.vaultMode();
 
   const state = await vaultQuery.getStableVaultState(await vault.getAddress());
@@ -373,8 +373,8 @@ export async function dumpStableVaultState(vault: StableVault, vaultQuery: Vault
     M_USDC: state.M_USDC,
     P_USDC: state.P_USDC,
     P_USDC_DECIMALS: state.P_USDC_DECIMALS,
-    M_USB: await usbToken.totalSupply(),
-    M_USB_USDC: state.M_USB_USDC,
+    M_USD: await Usd.totalSupply(),
+    M_USD_USDC: state.M_USD_USDC,
     M_USDCx: state.M_USDCx,
     AAR: state.aar,
     AARS: state.AARS,
@@ -392,8 +392,8 @@ export async function printVaultState(vault: Vault, vaultQuery: VaultQuery) {
 
   const assetTokenERC20 = ERC20__factory.connect(await vault.assetToken(), provider);
   const assetSymbol = (await vault.assetToken() == nativeTokenAddress) ? 'ETH' : await assetTokenERC20.symbol();
-  const usbToken = Usb__factory.connect(await protocol.usbToken(), provider);
-  const ethxToken = Usb__factory.connect(await vault.marginToken(), provider);
+  const Usd = Usd__factory.connect(await protocol.usdToken(), provider);
+  const ethxToken = Usd__factory.connect(await vault.marginToken(), provider);
   const priceFeed = MockPriceFeed__factory.connect(await vault.priceFeed(), provider);
 
   const aar = await vaultQuery.AAR(await vault.getAddress());
@@ -403,8 +403,8 @@ export async function printVaultState(vault: Vault, vaultQuery: VaultQuery) {
   console.log(`$${assetSymbol} Pool:`);
   console.log(`  P_${assetSymbol}: ${ethers.formatUnits(await priceFeed.latestPrice(), await priceFeed.decimals())}`);
   console.log(`  M_${assetSymbol}: ${ethers.formatUnits(await vault.assetBalance(), 18)}`);
-  console.log(`  M_USB: ${ethers.formatUnits(await usbToken.totalSupply(), 18)}`);
-  console.log(`  M_USB_${assetSymbol}: ${ethers.formatUnits(await vault.usbTotalSupply(), 18)}`);
+  console.log(`  M_USD: ${ethers.formatUnits(await Usd.totalSupply(), 18)}`);
+  console.log(`  M_USD_${assetSymbol}: ${ethers.formatUnits(await vault.usdTotalSupply(), 18)}`);
   console.log(`  M_${assetSymbol}x: ${ethers.formatUnits(await ethxToken.totalSupply(), 18)}`);
   console.log(`  AAR: ${AAR}`);
   console.log(`  APY: ${ethers.formatUnits(await vault.paramValue(ethers.encodeBytes32String('Y')), await settings.decimals())}`);
@@ -417,8 +417,8 @@ export async function printStableVaultState(vault: StableVault, vaultQuery: Vaul
 
   const assetTokenERC20 = ERC20__factory.connect(await vault.assetToken(), provider);
   const assetSymbol = (await vault.assetToken() == nativeTokenAddress) ? 'ETH' : await assetTokenERC20.symbol();
-  const usbToken = Usb__factory.connect(await protocol.usbToken(), provider);
-  const usdcxToken = Usb__factory.connect(await vault.marginToken(), provider);
+  const Usd = Usd__factory.connect(await protocol.usdToken(), provider);
+  const usdcxToken = Usd__factory.connect(await vault.marginToken(), provider);
   const priceFeed = MockPriceFeed__factory.connect(await vault.priceFeed(), provider);
 
   const aar = await vaultQuery.AAR(await vault.getAddress());
@@ -428,8 +428,8 @@ export async function printStableVaultState(vault: StableVault, vaultQuery: Vaul
   console.log(`$${assetSymbol} Pool:`);
   console.log(`  P_${assetSymbol}: ${ethers.formatUnits(await priceFeed.latestPrice(), await priceFeed.decimals())}`);
   console.log(`  M_${assetSymbol}: ${ethers.formatUnits(await vault.assetBalance(), 18)}`);
-  console.log(`  M_USB: ${ethers.formatUnits(await usbToken.totalSupply(), 18)}`);
-  console.log(`  M_USB_${assetSymbol}: ${ethers.formatUnits(await vault.usbTotalSupply(), 18)}`);
+  console.log(`  M_USD: ${ethers.formatUnits(await Usd.totalSupply(), 18)}`);
+  console.log(`  M_USD_${assetSymbol}: ${ethers.formatUnits(await vault.usdTotalSupply(), 18)}`);
   console.log(`  M_${assetSymbol}x: ${ethers.formatUnits(await usdcxToken.totalSupply(), 18)}`);
   console.log(`  AAR: ${AAR}`);
   console.log(`  APY: ${ethers.formatUnits(await vault.paramValue(ethers.encodeBytes32String('Y')), await settings.decimals())}`);

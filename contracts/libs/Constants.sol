@@ -36,7 +36,7 @@ library Constants {
     uint256 M_ETH;
     uint256 P_ETH;
     uint256 P_ETH_DECIMALS;
-    uint256 M_USB_ETH;
+    uint256 M_USD_ETH;
     uint256 M_ETHx;
     uint256 aar;
     uint256 AART;
@@ -53,7 +53,7 @@ library Constants {
     uint256 M_USDC;
     uint256 P_USDC;
     uint256 P_USDC_DECIMALS;
-    uint256 M_USB_USDC;
+    uint256 M_USD_USDC;
     uint256 M_USDCx;
     uint256 aar;
     // uint256 AART;

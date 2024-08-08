@@ -5,6 +5,6 @@ import "./IPtyPool.sol";
 
 interface IPtyPoolSellHigh is IPtyPool {
 
-  function notifySellHighTriggered(uint256 assetAmountMatched, uint256 usbSharesReceived, address assetRecipient) external;
+  function notifySellHighTriggered(uint256 assetAmountMatched, uint256 usdSharesReceived, address assetRecipient) external;
 
 }

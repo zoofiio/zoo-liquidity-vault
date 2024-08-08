@@ -4,14 +4,14 @@ pragma solidity ^0.8.18;
 import "../interfaces/IMarginToken.sol";
 import "../interfaces/IPtyPoolBuyLow.sol";
 import "../interfaces/IPtyPoolSellHigh.sol";
-import "../interfaces/IUsb.sol";
+import "../interfaces/IUsd.sol";
 import "../interfaces/IVault.sol";
 import "../libs/Constants.sol";
 import "../libs/TokensTransfer.sol";
 
 contract MockVault is IVault {
   address internal immutable _assetToken;
-  address internal immutable _usbToken;
+  address internal immutable _usdToken;
   address internal immutable _marginToken;
 
   Constants.VaultMode internal _vaultMode;
@@ -21,11 +21,11 @@ contract MockVault is IVault {
 
   constructor(
     address _assetToken_,
-    address _usbToken_,
+    address _usdToken_,
     address _marginToken_
   ) {
     _assetToken = _assetToken_;
-    _usbToken = _usbToken_;
+    _usdToken = _usdToken_;
     _marginToken = _marginToken_;
     _vaultMode = Constants.VaultMode.Empty;
   }
@@ -42,8 +42,8 @@ contract MockVault is IVault {
     return 0;
   }
 
-  function usbToken() external view override returns (address) {
-    return _usbToken;
+  function usdToken() external view override returns (address) {
+    return _usdToken;
   }
 
   function assetToken() external view override returns (address) {
@@ -66,7 +66,7 @@ contract MockVault is IVault {
     return _marginToken;
   }
 
-  function usbTotalSupply() external pure returns (uint256) {
+  function usdTotalSupply() external pure returns (uint256) {
     return 0;
   }
 
@@ -109,11 +109,11 @@ contract MockVault is IVault {
     ptyPoolBuyLow.addMatchingYields(assetAmount);
   }
 
-  function mockMatchedPtyPoolBuyLow(uint256 deltaAssetAmount, uint256 deltaUsbAmount) payable external {
+  function mockMatchedPtyPoolBuyLow(uint256 deltaAssetAmount, uint256 deltaUsdAmount) payable external {
     TokensTransfer.transferTokens(_assetToken, msg.sender, address(this), deltaAssetAmount);
     TokensTransfer.transferTokens(_assetToken, address(this), address(ptyPoolBuyLow), deltaAssetAmount);
 
-    IUsb(_usbToken).burn(address(ptyPoolBuyLow), deltaUsbAmount);
+    IUsd(_usdToken).burn(address(ptyPoolBuyLow), deltaUsdAmount);
     ptyPoolBuyLow.notifyBuyLowTriggered(deltaAssetAmount);
   }
 
@@ -129,8 +129,8 @@ contract MockVault is IVault {
     ptyPoolSellHigh.addMatchingYields(marginTokenAmount);
   }
 
-  function mockMatchedPtyPoolSellHigh(uint256 deltaAssetAmount, uint256 deltaUsbAmount) external {
-    uint256 usbSharesAmount = IUsb(_usbToken).mint(address(ptyPoolSellHigh), deltaUsbAmount);
-    ptyPoolSellHigh.notifySellHighTriggered(deltaAssetAmount, usbSharesAmount, address(this));
+  function mockMatchedPtyPoolSellHigh(uint256 deltaAssetAmount, uint256 deltaUsdAmount) external {
+    uint256 usdSharesAmount = IUsd(_usdToken).mint(address(ptyPoolSellHigh), deltaUsdAmount);
+    ptyPoolSellHigh.notifySellHighTriggered(deltaAssetAmount, usdSharesAmount, address(this));
   }
 }

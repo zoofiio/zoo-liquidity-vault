@@ -10,7 +10,7 @@ import "./Constants.sol";
 import "../interfaces/IMarginToken.sol";
 import "../interfaces/IProtocolSettings.sol";
 import "../interfaces/IPtyPool.sol";
-import "../interfaces/IUsb.sol";
+import "../interfaces/IUsd.sol";
 import "../interfaces/IVault.sol";
 
 library VaultCalculator {
@@ -25,25 +25,25 @@ library VaultCalculator {
   }
 
   /**
-   * @dev AAReth = (M_ETH * P_ETH / Musb-eth) * 100%
+   * @dev AAReth = (M_ETH * P_ETH / Musd-eth) * 100%
    */
   function AAR(IVault self) public view returns (uint256) {
     uint256 assetTotalAmount = self.assetBalance();
     if (assetTotalAmount == 0) {
       return 0;
     }
-    if (self.usbTotalSupply() == 0) {
+    if (self.usdTotalSupply() == 0) {
       return type(uint256).max;
     }
     (uint256 assetTokenPrice, uint256 assetTokenPriceDecimals) = self.assetTokenPrice();
-    return assetTotalAmount.mul(assetTokenPrice).div(10 ** assetTokenPriceDecimals).mul(10 ** self.AARDecimals()).div(self.usbTotalSupply());
+    return assetTotalAmount.mul(assetTokenPrice).div(10 ** assetTokenPriceDecimals).mul(10 ** self.AARDecimals()).div(self.usdTotalSupply());
   }
 
   function getVaultState(IVault self) public view returns (Constants.VaultState memory) {
     Constants.VaultState memory S;
     S.M_ETH = self.assetBalance();
     (S.P_ETH, S.P_ETH_DECIMALS) = self.assetTokenPrice();
-    S.M_USB_ETH = self.usbTotalSupply();
+    S.M_USD_ETH = self.usdTotalSupply();
     S.M_ETHx = IERC20(self.marginToken()).totalSupply();
     S.aar = AAR(self);
     S.AART = self.paramValue("AART");
@@ -62,33 +62,33 @@ library VaultCalculator {
     // require(vaultMode == Constants.VaultMode.Empty || vaultMode == Constants.VaultMode.Stability, "Vault not in stability mode");
     Constants.VaultState memory S = getVaultState(self);
 
-    uint256 usbOutAmount;
+    uint256 usdOutAmount;
     uint256 marginTokenOutAmount;
-    if (S.M_USB_ETH > 0 && S.M_ETHx > 0) {
-      // ΔUSB = ΔETH * M_USB_ETH / M_ETH
-      // ΔETHx = ΔUSB * M_ETHx / M_USB_ETH
-      usbOutAmount = assetAmount.mul(S.M_USB_ETH).div(S.M_ETH);
-      marginTokenOutAmount = usbOutAmount.mul(S.M_ETHx).div(S.M_USB_ETH);
+    if (S.M_USD_ETH > 0 && S.M_ETHx > 0) {
+      // ΔUSD = ΔETH * M_USD_ETH / M_ETH
+      // ΔETHx = ΔUSD * M_ETHx / M_USD_ETH
+      usdOutAmount = assetAmount.mul(S.M_USD_ETH).div(S.M_ETH);
+      marginTokenOutAmount = usdOutAmount.mul(S.M_ETHx).div(S.M_USD_ETH);
     } else {
-      // ΔUSB = ΔETH * P_ETH * 1 / AART
+      // ΔUSD = ΔETH * P_ETH * 1 / AART
       // ΔETHx = ΔETH * (1 - 1 / AART) = ΔETH * (AART - 1) / AART
       Constants.Terms memory T;
       T.T1 = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS);
-      usbOutAmount = T.T1.mul(10 ** S.AARDecimals).div(S.AART);
+      usdOutAmount = T.T1.mul(10 ** S.AARDecimals).div(S.AART);
       marginTokenOutAmount = assetAmount.mul(S.AART.sub(10 ** S.AARDecimals)).div(S.AART);
     }
-    return (S, usbOutAmount, marginTokenOutAmount);
+    return (S, usdOutAmount, marginTokenOutAmount);
   }
 
-  function calcMintUsbAboveAARU(IVault self, uint256 assetAmount) public view returns (Constants.VaultState memory, uint256) {
+  function calcMintUsdAboveAARU(IVault self, uint256 assetAmount) public view returns (Constants.VaultState memory, uint256) {
     Constants.VaultMode vaultMode = self.vaultMode();
     require(vaultMode == Constants.VaultMode.AdjustmentAboveAARU, "Vault not in adjustment above AARU mode");
 
     Constants.VaultState memory S = getVaultState(self);
 
-    // ΔUSB = ΔETH * P_ETH
-    uint256 usbOutAmount = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS);
-    return (S, usbOutAmount);
+    // ΔUSD = ΔETH * P_ETH
+    uint256 usdOutAmount = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS);
+    return (S, usdOutAmount);
   }
 
   function calcMintMarginTokensBelowAARS(IVault self, uint256 assetAmount) public view returns (Constants.VaultState memory, uint256) {
@@ -101,35 +101,35 @@ library VaultCalculator {
     uint256 marginTokenOutAmount;
     
     if (S.aar >= aar101) { // aar >= 101% 
-      // ΔETHx = ΔETH * P_ETH * M_ETHx / (M_ETH * P_ETH - Musb-eth)
+      // ΔETHx = ΔETH * P_ETH * M_ETHx / (M_ETH * P_ETH - Musd-eth)
       marginTokenOutAmount = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).mul(S.M_ETHx).div(
-        S.M_ETH.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).sub(S.M_USB_ETH)
+        S.M_ETH.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH)
       );
     }
     else { //  aar < 101% 
-      // ΔETHx = ΔETH * P_ETH * M_ETHx * 100 / Musb-eth
-      marginTokenOutAmount = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).mul(S.M_ETHx).mul(100).div(S.M_USB_ETH);
+      // ΔETHx = ΔETH * P_ETH * M_ETHx * 100 / Musd-eth
+      marginTokenOutAmount = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).mul(S.M_ETHx).mul(100).div(S.M_USD_ETH);
     }
 
     return (S, marginTokenOutAmount);
   }
 
-  function calcPairdMarginTokenAmount(IVault self, uint256 usbAmount) public view returns (uint256) {
+  function calcPairdMarginTokenAmount(IVault self, uint256 usdAmount) public view returns (uint256) {
     Constants.VaultState memory S = getVaultState(self);
 
-    // ΔUSB = ΔETHx * Musb-eth / M_ETHx
-    // ΔETHx = ΔUSB * M_ETHx / Musb-eth
-    uint256 marginTokenOutAmount = usbAmount.mul(S.M_ETHx).div(S.M_USB_ETH);
+    // ΔUSD = ΔETHx * Musd-eth / M_ETHx
+    // ΔETHx = ΔUSD * M_ETHx / Musd-eth
+    uint256 marginTokenOutAmount = usdAmount.mul(S.M_ETHx).div(S.M_USD_ETH);
     return marginTokenOutAmount;
   }
 
-  function calcPairedUsbAmount(IVault self, uint256 marginTokenAmount) public view returns (uint256) {
+  function calcPairedUsdAmount(IVault self, uint256 marginTokenAmount) public view returns (uint256) {
     Constants.VaultState memory S = getVaultState(self);
 
-    // ΔUSB = ΔETHx * Musb-eth / M_ETHx
-    // ΔETHx = ΔUSB * M_ETHx / Musb-eth
-    uint256 usbOutAmount = marginTokenAmount.mul(S.M_USB_ETH).div(S.M_ETHx);
-    return usbOutAmount;
+    // ΔUSD = ΔETHx * Musd-eth / M_ETHx
+    // ΔETHx = ΔUSD * M_ETHx / Musd-eth
+    uint256 usdOutAmount = marginTokenAmount.mul(S.M_USD_ETH).div(S.M_ETHx);
+    return usdOutAmount;
   }
 
   function calcPairedRedeemAssetAmount(IVault self, uint256 marginTokenAmount) public view returns (Constants.VaultState memory, uint256) {
@@ -146,32 +146,32 @@ library VaultCalculator {
 
     Constants.VaultState memory S = getVaultState(self);
 
-    // ΔETH = ΔETHx * (M_ETH * P_ETH - Musb-eth) / (M_ETHx * P_ETH)
+    // ΔETH = ΔETHx * (M_ETH * P_ETH - Musd-eth) / (M_ETHx * P_ETH)
     uint256 assetOutAmount = marginTokenAmount.mul(
-      S.M_ETH.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).sub(S.M_USB_ETH)
+      S.M_ETH.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH)
     ).div(S.M_ETHx.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS));
     return (S, assetOutAmount);
   }
 
-  function calcRedeemByUsbBelowAARS(IVault self, uint256 usbAmount) public view returns (Constants.VaultState memory, uint256) {
+  function calcRedeemByUsdBelowAARS(IVault self, uint256 usdAmount) public view returns (Constants.VaultState memory, uint256) {
     Constants.VaultMode vaultMode = self.vaultMode();
     require(vaultMode == Constants.VaultMode.AdjustmentBelowAARS, "Vault not in adjustment below AARS mode");
 
     Constants.VaultState memory S = getVaultState(self);
 
     if (S.aar < (10 ** S.AARDecimals)) {
-      // ΔETH = ΔUSB * M_ETH / Musb-eth
-      uint256 assetOutAmount = usbAmount.mul(S.M_ETH).div(S.M_USB_ETH);
+      // ΔETH = ΔUSD * M_ETH / Musd-eth
+      uint256 assetOutAmount = usdAmount.mul(S.M_ETH).div(S.M_USD_ETH);
       return (S, assetOutAmount);
     }
     else {
-      // ΔETH = ΔUSB / P_ETH
-      uint256 assetOutAmount = usbAmount.mul(10 ** S.P_ETH_DECIMALS).div(S.P_ETH);
+      // ΔETH = ΔUSD / P_ETH
+      uint256 assetOutAmount = usdAmount.mul(10 ** S.P_ETH_DECIMALS).div(S.P_ETH);
       return (S, assetOutAmount);
     }
   }
 
-  function calcUsbToMarginTokens(IVault self, IProtocolSettings settings, uint256 usbAmount) public view returns (Constants.VaultState memory, uint256) {
+  function calcUsdToMarginTokens(IVault self, IProtocolSettings settings, uint256 usdAmount) public view returns (Constants.VaultState memory, uint256) {
     Constants.VaultMode vaultMode = self.vaultMode();
     require(vaultMode == Constants.VaultMode.AdjustmentBelowAARS, "Vault not in adjustment mode");
 
@@ -182,16 +182,16 @@ library VaultCalculator {
     uint256 marginTokenOutAmount;
     
     if (S.aar >= aar101) { // aar >= 101% 
-      // ΔETHx = ΔUSB * M_ETHx * (1 + r) / (M_ETH * P_ETH - Musb-eth)
+      // ΔETHx = ΔUSD * M_ETHx * (1 + r) / (M_ETH * P_ETH - Musd-eth)
       Constants.Terms memory T;
-      T.T1 = usbAmount.mul(S.M_ETHx).mul((10 ** settings.decimals()).add(_r(S.AARBelowSafeLineTime, S.RateR)));
+      T.T1 = usdAmount.mul(S.M_ETHx).mul((10 ** settings.decimals()).add(_r(S.AARBelowSafeLineTime, S.RateR)));
       marginTokenOutAmount = T.T1.div(
-        S.M_ETH.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).sub(S.M_USB_ETH)
+        S.M_ETH.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH)
       ).div(10 ** settings.decimals());
     }
     else { //  aar < 101% 
-      // ΔETHx = ΔUSB * M_ETHx * 100 / Musb-eth
-      marginTokenOutAmount = usbAmount.mul(S.M_ETHx).mul(100).div(S.M_USB_ETH);
+      // ΔETHx = ΔUSD * M_ETHx * 100 / Musd-eth
+      marginTokenOutAmount = usdAmount.mul(S.M_ETHx).mul(100).div(S.M_USD_ETH);
     }
     return (S, marginTokenOutAmount);
   }
@@ -205,33 +205,33 @@ library VaultCalculator {
     return rateR.mul(block.timestamp.sub(aarBelowSafeLineTime)).div(1 hours);
   }
 
-  function calcDeltaUsbForPtyPoolBuyLow(IVault self, IProtocolSettings settings, address usbToken, address ptyPoolBuyLow) public view returns (Constants.VaultState memory, uint256) {
+  function calcDeltaUsdForPtyPoolBuyLow(IVault self, IProtocolSettings settings, address Usd, address ptyPoolBuyLow) public view returns (Constants.VaultState memory, uint256) {
     Constants.VaultState memory S = getVaultState(self);
 
-    // ΔETH = (Musb-eth * AART - M_ETH * P_ETH) / (P_ETH * (AART - 1))
-    // ΔUSB = (Musb-eth * AART - M_ETH * P_ETH) / (AART - 1)
-    uint256 deltaUsbAmount = S.M_USB_ETH.mul(S.AART).sub(
+    // ΔETH = (Musd-eth * AART - M_ETH * P_ETH) / (P_ETH * (AART - 1))
+    // ΔUSD = (Musd-eth * AART - M_ETH * P_ETH) / (AART - 1)
+    uint256 deltaUsdAmount = S.M_USD_ETH.mul(S.AART).sub(
       S.M_ETH.mul(S.P_ETH).mul(10 ** S.AARDecimals).div(10 ** S.P_ETH_DECIMALS)
     ).div(S.AART.sub(10 ** S.AARDecimals));
 
-    uint256 minUsbAmount = self.paramValue("PtyPoolMinUsbAmount");
-    // Convert to $USB decimals
-    minUsbAmount = minUsbAmount.mul(10 ** ((IUsb(usbToken).decimals() - settings.decimals())));
-    uint256 ptyPoolUsbBalance = IERC20(usbToken).balanceOf(ptyPoolBuyLow);
-    if (ptyPoolUsbBalance <= minUsbAmount) {
+    uint256 minUsdAmount = self.paramValue("PtyPoolMinUsdAmount");
+    // Convert to $zUSD decimals
+    minUsdAmount = minUsdAmount.mul(10 ** ((IUsd(Usd).decimals() - settings.decimals())));
+    uint256 ptyPoolUsdBalance = IERC20(Usd).balanceOf(ptyPoolBuyLow);
+    if (ptyPoolUsdBalance <= minUsdAmount) {
       return (S, 0);
     }
-    // console.log('calcDeltaUsbForPtyPoolBuyLow, minUsbAmount: %s, deltaUsbAmount: %s', minUsbAmount, deltaUsbAmount);
-    deltaUsbAmount = deltaUsbAmount > ptyPoolUsbBalance.sub(minUsbAmount) ? ptyPoolUsbBalance.sub(minUsbAmount) : deltaUsbAmount;
-    return (S, deltaUsbAmount);
+    // console.log('calcDeltaUsdForPtyPoolBuyLow, minUsdAmount: %s, deltaUsdAmount: %s', minUsdAmount, deltaUsdAmount);
+    deltaUsdAmount = deltaUsdAmount > ptyPoolUsdBalance.sub(minUsdAmount) ? ptyPoolUsdBalance.sub(minUsdAmount) : deltaUsdAmount;
+    return (S, deltaUsdAmount);
   }
 
   function calcDeltaAssetForPtyPoolSellHigh(IVault self, IProtocolSettings settings, address ptyPoolSellHigh) public view returns (Constants.VaultState memory, uint256) {
     Constants.VaultState memory S = getVaultState(self);
 
-    // ΔETH = (M_ETH * P_ETH - Musb-eth * AART) / (P_ETH * (AART - 1))
+    // ΔETH = (M_ETH * P_ETH - Musd-eth * AART) / (P_ETH * (AART - 1))
     uint256 deltaAssetAmount = S.M_ETH.mul(S.P_ETH).mul(10 ** S.AARDecimals).sub(
-      S.M_USB_ETH.mul(S.AART).mul(10 ** S.P_ETH_DECIMALS)
+      S.M_USD_ETH.mul(S.AART).mul(10 ** S.P_ETH_DECIMALS)
     ).div(S.P_ETH.mul(S.AART.sub(10 ** S.AARDecimals)));
 
     uint256 minAssetAmount = self.paramValue("PtyPoolMinAssetAmount");
@@ -269,7 +269,7 @@ library VaultCalculator {
     IVault self, IProtocolSettings settings, uint256 yieldsBaseAssetAmount,
     uint256 lastYieldsSettlementTime
   ) public view returns (uint256, uint256) {
-    uint256 usbOutAmount = 0;
+    uint256 usdOutAmount = 0;
     uint256 marginTokenOutAmount = 0;
 
     uint256 timeElapsed = block.timestamp.sub(lastYieldsSettlementTime);
@@ -277,10 +277,10 @@ library VaultCalculator {
     uint256 deltaAssetAmount = timeElapsed.mul(Y).mul(yieldsBaseAssetAmount).div(365 days).div(10 ** settings.decimals());
     if (deltaAssetAmount > 0) {
       Constants.VaultState memory S;
-      (S, usbOutAmount, marginTokenOutAmount) = calcMintPairs(self, deltaAssetAmount);
+      (S, usdOutAmount, marginTokenOutAmount) = calcMintPairs(self, deltaAssetAmount);
     }
 
-    return (usbOutAmount, marginTokenOutAmount);
+    return (usdOutAmount, marginTokenOutAmount);
   }
 
   function paramValue(IVault self, IProtocolSettings settings, bytes32 paramName) public view returns (uint256) {

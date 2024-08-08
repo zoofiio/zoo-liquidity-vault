@@ -6,11 +6,11 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import "../interfaces/IProtocolSettings.sol";
-import "../interfaces/IUsb.sol";
+import "../interfaces/IUsd.sol";
 import "../interfaces/IZooProtocol.sol";
 import "../settings/ProtocolOwner.sol";
 
-contract Usb is IUsb, ProtocolOwner, ReentrancyGuard {
+contract Usd is IUsd, ProtocolOwner, ReentrancyGuard {
   using SafeMath for uint256;
 
   uint256 constant internal INFINITE_ALLOWANCE = type(uint256).max;
@@ -33,11 +33,11 @@ contract Usb is IUsb, ProtocolOwner, ReentrancyGuard {
   /* ================= IERC20Metadata ================ */
 
   function name() public pure returns (string memory) {
-    return 'Zoo USB';
+    return 'Zoo USD';
   }
 
   function symbol() public pure returns (string memory) {
-    return 'USB';
+    return 'zUSD';
   }
 
   function decimals() public pure returns (uint8) {
@@ -115,7 +115,7 @@ contract Usb is IUsb, ProtocolOwner, ReentrancyGuard {
     return true;
   }
 
-  /* ================= IUsb Functions ================ */
+  /* ================= IUsd Functions ================ */
 
   function mint(address to, uint256 amount) external nonReentrant onlyVault returns (uint256) {
     require(to != address(0), "Zero address detected");

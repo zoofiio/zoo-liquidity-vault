@@ -15,8 +15,8 @@ const vaults = [
   {
     assetsToken: "0x46eFC86F0D7455F135CC9df501673739d513E982",
     assetsSymbol: "iBGT",
-    marginTokenName: "Zoo Leveraged iBGT",
-    marginTokenSymbol: "iBGTx",
+    marginTokenName: "Zoo xiBGT",
+    marginTokenSymbol: "xiBGT",
     chainlinkPriceFeed: ibgtPriceFeed,
   },
 ];
@@ -199,18 +199,18 @@ async function main() {
   const protocolSettingsAddress = await deployContract("ProtocolSettings", [protocalAddress, treasuryAddress]);
   const settings = await ethers.getContractAt("ProtocolSettings", protocolSettingsAddress);
 
-  // Deploy Usb
-  const usbAddress = await deployContract("Usb", [protocalAddress, await settings.getAddress()]);
-  const Usb = await ethers.getContractAt("Usb", usbAddress);
+  // Deploy Usd
+  const usdAddress = await deployContract("Usd", [protocalAddress, await settings.getAddress()]);
+  const Usd = await ethers.getContractAt("Usd", usdAddress);
 
-  // initProtocal usb
+  // initProtocal Usd
   if (!(await protocol.initialized())) {
     await protocol
       .connect(deployer)
-      .initialize(await Usb.getAddress())
+      .initialize(await Usd.getAddress())
       .then((tx) => tx.wait(1));
   }
-  console.log(`Initialized ZooProtocol with $USB token`);
+  console.log(`Initialized ZooProtocol with $zUSD token`);
 
   const vaultCalculatorAddress = await deployContract("VaultCalculator", []);
   for (const vc of vaults) {

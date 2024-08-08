@@ -24,20 +24,20 @@ contract VaultQuery {
     return vault.calcMintPairs(assetAmount);
   }
 
-  function calcMintUsbAboveAARU(Vault vault, uint256 assetAmount) external view returns (Constants.VaultState memory, uint256) {
-    return vault.calcMintUsbAboveAARU(assetAmount);
+  function calcMintUsdAboveAARU(Vault vault, uint256 assetAmount) external view returns (Constants.VaultState memory, uint256) {
+    return vault.calcMintUsdAboveAARU(assetAmount);
   }
 
   function calcMintMarginTokensBelowAARS(Vault vault, uint256 assetAmount) external view returns (Constants.VaultState memory, uint256) {
     return vault.calcMintMarginTokensBelowAARS(assetAmount);
   }
 
-  function calcPairdMarginTokenAmount(Vault vault, uint256 usbAmount) external view returns (uint256) {
-    return vault.calcPairdMarginTokenAmount(usbAmount);
+  function calcPairdMarginTokenAmount(Vault vault, uint256 usdAmount) external view returns (uint256) {
+    return vault.calcPairdMarginTokenAmount(usdAmount);
   }
 
-  function calcPairedUsbAmount(Vault vault, uint256 marginTokenAmount) external view returns (uint256) {
-    return vault.calcPairedUsbAmount(marginTokenAmount);
+  function calcPairedUsdAmount(Vault vault, uint256 marginTokenAmount) external view returns (uint256) {
+    return vault.calcPairedUsdAmount(marginTokenAmount);
   }
 
   function calcPairedRedeemAssetAmount(Vault vault, uint256 marginTokenAmount) external view returns (Constants.VaultState memory, uint256) {
@@ -48,20 +48,20 @@ contract VaultQuery {
     return vault.calcRedeemByMarginTokenAboveAARU(marginTokenAmount);
   }
 
-  function calcRedeemByUsbBelowAARS(Vault vault, uint256 usbAmount) external view returns (Constants.VaultState memory, uint256) {
-    return vault.calcRedeemByUsbBelowAARS(usbAmount);
+  function calcRedeemByUsdBelowAARS(Vault vault, uint256 usdAmount) external view returns (Constants.VaultState memory, uint256) {
+    return vault.calcRedeemByUsdBelowAARS(usdAmount);
   }
 
-  function calcUsbToMarginTokens(Vault vault, IProtocolSettings settings, uint256 usbAmount) external view returns (Constants.VaultState memory, uint256) {
-    return vault.calcUsbToMarginTokens(settings, usbAmount);
+  function calcUsdToMarginTokens(Vault vault, IProtocolSettings settings, uint256 usdAmount) external view returns (Constants.VaultState memory, uint256) {
+    return vault.calcUsdToMarginTokens(settings, usdAmount);
   }
 
   function getStableVaultState(StableVault vault) external view returns (Constants.StableVaultState memory) {
     return vault.getStableVaultState();
   }
 
-  function calcMintUsbFromStableVault(StableVault vault, uint256 assetAmount) external view returns (Constants.StableVaultState memory, uint256) {
-    return vault.calcMintUsbFromStableVault(assetAmount);
+  function calcMintUsdFromStableVault(StableVault vault, uint256 assetAmount) external view returns (Constants.StableVaultState memory, uint256) {
+    return vault.calcMintUsdFromStableVault(assetAmount);
   }
 
   function calcMintMarginTokensFromStableVault(StableVault vault, uint256 assetAmount) external view returns (Constants.StableVaultState memory, uint256) {
@@ -72,27 +72,27 @@ contract VaultQuery {
     return vault.calcMintPairsFromStableVault(assetAmount);
   }
 
-  function calcRedeemByUsbFromStableVault(StableVault vault, IProtocolSettings settings, uint256 usbAmount) external view returns (Constants.StableVaultState memory, uint256, uint256, uint256) {
-    return vault.calcRedeemByUsbFromStableVault(settings, usbAmount);
+  function calcRedeemByUsdFromStableVault(StableVault vault, IProtocolSettings settings, uint256 usdAmount) external view returns (Constants.StableVaultState memory, uint256, uint256, uint256) {
+    return vault.calcRedeemByUsdFromStableVault(settings, usdAmount);
   }
 
   function calcRedeemByMarginTokensFromStableVault(StableVault vault, IProtocolSettings settings, uint256 marginTokenAmount) external view returns (Constants.StableVaultState memory, uint256, uint256, uint256) {
     return vault.calcRedeemByMarginTokensFromStableVault(settings, marginTokenAmount);
   }
 
-  function calcPairdMarginTokenAmountForStableVault(StableVault vault, uint256 usbAmount) external view returns (uint256) {
-    return vault.calcPairdMarginTokenAmountForStableVault(usbAmount);
+  function calcPairdMarginTokenAmountForStableVault(StableVault vault, uint256 usdAmount) external view returns (uint256) {
+    return vault.calcPairdMarginTokenAmountForStableVault(usdAmount);
   }
 
-  function calcPairedUsbAmountForStableVault(StableVault vault, uint256 marginTokenAmount) external view returns (uint256) {
-    return vault.calcPairedUsbAmountForStableVault(marginTokenAmount);
+  function calcPairedUsdAmountForStableVault(StableVault vault, uint256 marginTokenAmount) external view returns (uint256) {
+    return vault.calcPairedUsdAmountForStableVault(marginTokenAmount);
   }
 
   function calcRedeemByPairsAssetAmountForStableVault(StableVault vault, IProtocolSettings settings, uint256 marginTokenAmount) external view returns (Constants.StableVaultState memory, uint256, uint256, uint256) {
     return vault.calcRedeemByPairsAssetAmountForStableVault(settings, marginTokenAmount);
   }
 
-  function calcUsbToMarginTokensForStableVault(StableVault vault, IProtocolSettings settings, uint256 usbAmount) external view returns (Constants.StableVaultState memory, uint256) {
-    return  vault.calcUsbToMarginTokensForStableVault(settings, usbAmount);
+  function calcUsdToMarginTokensForStableVault(StableVault vault, IProtocolSettings settings, uint256 usdAmount) external view returns (Constants.StableVaultState memory, uint256) {
+    return  vault.calcUsdToMarginTokensForStableVault(settings, usdAmount);
   }
 }

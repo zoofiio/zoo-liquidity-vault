@@ -9,7 +9,7 @@ interface IVault {
 
   function AARDecimals() external pure returns (uint256);
 
-  function usbToken() external view returns (address);
+  function usdToken() external view returns (address);
 
   function assetToken() external view returns (address);
 
@@ -19,7 +19,7 @@ interface IVault {
 
   function assetBalance() external view returns (uint256);
 
-  function usbTotalSupply() external view returns (uint256);
+  function usdTotalSupply() external view returns (uint256);
 
   function marginToken() external view returns (address);
 

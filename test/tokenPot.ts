@@ -8,9 +8,9 @@ import { TokenPot__factory } from "../typechain";
 describe('TokenPot', () => {
 
   it('TokenPot works', async () => {
-    const { protocol, settings, usb, erc20, stETH, Alice, Bob } = await loadFixture(deployBaseContractsFixture);
+    const { protocol, settings, usd, erc20, stETH, Alice, Bob } = await loadFixture(deployBaseContractsFixture);
 
-    let trans = await protocol.connect(Alice).initialize(await usb.getAddress());
+    let trans = await protocol.connect(Alice).initialize(await usd.getAddress());
     await trans.wait();
 
     const TokenPotFactory = await ethers.getContractFactory("TokenPot");

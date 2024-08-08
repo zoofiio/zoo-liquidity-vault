@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import "./interfaces/IUsb.sol";
+import "./interfaces/IUsd.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IZooProtocol.sol";
 import "./settings/ProtocolSettings.sol";
@@ -13,7 +13,7 @@ import "./settings/ProtocolSettings.sol";
 contract ZooProtocol is IZooProtocol, Ownable, ReentrancyGuard {
   using EnumerableSet for EnumerableSet.AddressSet;
 
-  address internal _usbToken;
+  address internal _usdToken;
 
   EnumerableSet.AddressSet internal _assetTokens;
   EnumerableSet.AddressSet internal _vaults;
@@ -29,17 +29,17 @@ contract ZooProtocol is IZooProtocol, Ownable, ReentrancyGuard {
     return owner();
   }
 
-  function usbToken() public view override returns (address) {
-    return _usbToken;
+  function usdToken() public view override returns (address) {
+    return _usdToken;
   }
 
   /* ========== RESTRICTED FUNCTIONS ========= */
 
-  function initialize(address _usbToken_) external nonReentrant onlyOwner {
+  function initialize(address _usdToken_) external nonReentrant onlyOwner {
     require(!initialized, "Already initialized");
-    require(_usbToken_ != address(0), "Zero address detected");
+    require(_usdToken_ != address(0), "Zero address detected");
 
-    _usbToken = _usbToken_;
+    _usdToken = _usdToken_;
 
     initialized = true;
     emit Initialized();

@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../libs/Constants.sol";
 import "../libs/TokensTransfer.sol";
 import "../interfaces/IProtocolSettings.sol";
-import "../interfaces/IUsb.sol";
+import "../interfaces/IUsd.sol";
 import "../interfaces/IVault.sol";
 import "../interfaces/IZooProtocol.sol";
 import "../settings/ProtocolOwner.sol";
@@ -25,12 +25,12 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
   IProtocolSettings public immutable settings;
   IVault internal immutable _vault;
 
-  address internal _stakingUsbToken;  // $USB
+  address internal _stakingUsdToken;  // $zUSD
   address internal _targetAssetToken;  // $ETH / $WBTC / ...
   address internal _stakingYieldsMarginToken;  // $ETHx / ...
   address internal _matchingYieldsAssetToken;  // $ETH / ...
 
-  uint256 internal _totalStakingShares; // $USB LP shares
+  uint256 internal _totalStakingShares; // $zUSD LP shares
   mapping(address => uint256) internal _userStakingShares;
 
   uint256 internal _accruedMatchingYields;  // $ETH / $WBTC / ...
@@ -61,7 +61,7 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
     _stakingYieldsMarginToken = _stakingYieldsToken_;
     _matchingYieldsAssetToken = _matchingYieldsToken_;
 
-    _stakingUsbToken = protocol.usbToken();
+    _stakingUsdToken = protocol.usdToken();
     _targetAssetToken = _vault.assetToken();
 
     require(_targetAssetToken == _matchingYieldsAssetToken, "PtyPoolBuyLow: target token and matching yields token mismatch");
@@ -75,9 +75,9 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
     return address(_vault);
   }
 
-  // $USB
+  // $zUSD
   function stakingToken() public view returns (address) {
-    return _stakingUsbToken;
+    return _stakingUsdToken;
   }
 
   // $ETH
@@ -149,7 +149,7 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
     _totalStakingShares = _totalStakingShares.add(sharesAmount);
     _userStakingShares[_msgSender()] = _userStakingShares[_msgSender()].add(sharesAmount);
 
-    TokensTransfer.transferTokens(_stakingUsbToken, _msgSender(), address(this), amount);
+    TokensTransfer.transferTokens(_stakingUsdToken, _msgSender(), address(this), amount);
     emit Staked(_msgSender(), amount);
   }
 
@@ -163,7 +163,7 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
     _totalStakingShares = _totalStakingShares.sub(sharesAmount);
     _userStakingShares[_msgSender()] = _userStakingShares[_msgSender()].sub(sharesAmount);
 
-    TokensTransfer.transferTokens(_stakingUsbToken, address(this), _msgSender(), amount);
+    TokensTransfer.transferTokens(_stakingUsdToken, address(this), _msgSender(), amount);
     emit Withdrawn(_msgSender(), amount);
   }
 
@@ -222,7 +222,7 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
    */
   function rescue(address token, address recipient) external nonReentrant onlyOwner {
     require(token != address(0) && recipient != address(0), "Zero address detected");
-    require(token != _stakingUsbToken && token != _targetAssetToken && token != _stakingYieldsMarginToken && token != _matchingYieldsAssetToken, "Cannot rescue staking or yield tokens");
+    require(token != _stakingUsdToken && token != _targetAssetToken && token != _stakingYieldsMarginToken && token != _matchingYieldsAssetToken, "Cannot rescue staking or yield tokens");
 
     uint256 amount;
     if (token == Constants.NATIVE_TOKEN) {
@@ -254,7 +254,7 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
     emit MatchingYieldsAdded(yieldsAmount);
   }
 
-  // $ETH; before calling this function, $USB should be burned, and $ETH should be transferred to this contract
+  // $ETH; before calling this function, $zUSD should be burned, and $ETH should be transferred to this contract
   function notifyBuyLowTriggered(uint256 assetAmountAdded) external nonReentrant updateTargetTokens(address(0)) onlyVault {
     // require(_vault.vaultMode() == Constants.VaultMode.AdjustmentBelowAARS, "Vault not in adjustment below AARS mode");
 
@@ -274,7 +274,7 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
   }
 
   function _totalStakingBalance() internal view returns (uint256) {
-    return IERC20(_stakingUsbToken).balanceOf(address(this));
+    return IERC20(_stakingUsdToken).balanceOf(address(this));
   }
 
   function _getStakingSharesByBalance(uint256 stakingBalance) internal view returns (uint256) {

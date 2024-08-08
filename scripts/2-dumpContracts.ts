@@ -29,7 +29,7 @@ async function main() {
   const protocolSettings = ProtocolSettings__factory.connect(protocolSettingsAddress, provider);
   console.log(`ProtocolSettings: ${await protocolSettings.getAddress()}`);
   console.log(`ZooProtocol: ${await protocol.getAddress()}`);
-  console.log(`  $USB Token: ${await protocol.usbToken()}`);
+  console.log(`  $zUSD Token: ${await protocol.usdToken()}`);
   console.log(`  Treasury: ${await protocolSettings.treasury()}`);
 
   const assetTokens = await protocol.assetTokens();

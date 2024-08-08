@@ -76,7 +76,7 @@ describe("Vaults", () => {
   });
 
   const isEmpty = (S: DumpVS) => {
-    return S.M_ETH <= 0 || S.M_ETHx <= 0 || S.M_USB_ETH <= 0;
+    return S.M_ETH <= 0 || S.M_ETHx <= 0 || S.M_USD_ETH <= 0;
   };
 
   const mockPrice = async (vault: Vault, price: bigint) => {
@@ -114,16 +114,16 @@ describe("Vaults", () => {
           asset * S.P_ETH / power(S.P_ETH_DECIMALS) * power(S.AARDecimals) / S.AART,
           asset * (S.AART - power(S.AARDecimals)) / S.AART,
         ]
-      : [asset * S.M_USB_ETH / S.M_ETH, asset * S.M_ETHx / S.M_ETH];
+      : [asset * S.M_USD_ETH / S.M_ETH, asset * S.M_ETHx / S.M_ETH];
     log && console.info("calc:", result);
     return result;
   };
 
-  const expectCalcMintUsbAARU = (deltaAsset: string, S: DumpVS) => {
+  const expectCalcMintUsdAARU = (deltaAsset: string, S: DumpVS) => {
     const asset = parseEther(deltaAsset);
     //@TODO isEmpty
     // if (isEmpty(S)) return BigInt(0);
-    //@TODO (M_ETH * P_ETH - Musb-eth) < 0
+    //@TODO (M_ETH * P_ETH - Musd-eth) < 0
 
     const result = asset * S.P_ETH / power(S.P_ETH_DECIMALS);
     log && console.info("calc:", result);
@@ -135,21 +135,21 @@ describe("Vaults", () => {
     let result = BigInt(0);
     //@TODO isEmpty
 
-    //@TODO (M_ETH * P_ETH - Musb-eth) < 0
-    if (S.M_ETH * S.P_ETH / power(S.P_ETH_DECIMALS) <= S.M_USB_ETH) result = BigInt(0);
+    //@TODO (M_ETH * P_ETH - Musd-eth) < 0
+    if (S.M_ETH * S.P_ETH / power(S.P_ETH_DECIMALS) <= S.M_USD_ETH) result = BigInt(0);
     else
       result = asset
         * S.P_ETH
         / power(S.P_ETH_DECIMALS)
         * S.M_ETHx
-        / (S.M_ETH * S.P_ETH / power(S.P_ETH_DECIMALS) - S.M_USB_ETH);
+        / (S.M_ETH * S.P_ETH / power(S.P_ETH_DECIMALS) - S.M_USD_ETH);
     log && console.info("calc:", result);
     return result;
   };
   const subFee = (amount: bigint, S: DumpVS) => amount - (amount * S.C / power(S.settingDecimals));
-  const expectCalcRedeemByPairWithUsb = (deltaUsb: string, S: DumpVS) => {
-    const usbAmount = parseEther(deltaUsb);
-    const xAmount = usbAmount * S.M_ETHx / S.M_USB_ETH;
+  const expectCalcRedeemByPairWithUsd = (deltaUsd: string, S: DumpVS) => {
+    const usdAmount = parseEther(deltaUsd);
+    const xAmount = usdAmount * S.M_ETHx / S.M_USD_ETH;
     const expectAssetOut = xAmount * S.M_ETH / S.M_ETHx;
     const result = [xAmount, expectAssetOut];
     log && console.info("calc:", result);
@@ -159,39 +159,39 @@ describe("Vaults", () => {
   const expectCalcRedeemByXtokenAARU = (deltaX: string, S: DumpVS) => {
     const xAmount = parseEther(deltaX);
     const assetOut = xAmount
-      * (S.M_ETH * S.P_ETH / power(S.P_ETH_DECIMALS) - S.M_USB_ETH)
+      * (S.M_ETH * S.P_ETH / power(S.P_ETH_DECIMALS) - S.M_USD_ETH)
       / (S.M_ETHx * S.P_ETH / power(S.P_ETH_DECIMALS));
     const result = assetOut;
     log && console.info("calc:", result);
     return result;
   };
 
-  const expectCalcRedeemByUsbAARS = (deltaUsb: string, S: DumpVS) => {
-    const usbAmount = parseEther(deltaUsb);
+  const expectCalcRedeemByUsdAARS = (deltaUsd: string, S: DumpVS) => {
+    const usdAmount = parseEther(deltaUsd);
     let result = BigInt(0);
     if (S.AAR < power(S.AARDecimals)) {
-      result = usbAmount * S.M_ETH / S.M_USB_ETH;
+      result = usdAmount * S.M_ETH / S.M_USD_ETH;
     } else {
-      result = usbAmount * power(S.P_ETH_DECIMALS) / S.P_ETH;
+      result = usdAmount * power(S.P_ETH_DECIMALS) / S.P_ETH;
     }
     log && console.info("calc:", result);
     return result;
   };
 
-  const expectCalcUsbToEthxAmount = async (deltaUsb: bigint, S: DumpVS) => {
+  const expectCalcUsdToEthxAmount = async (deltaUsd: bigint, S: DumpVS) => {
     const aar101 = power(S.AARDecimals) * 101n / 100n;
     let deltaUsdcx = BigInt(0);
     if (S.AAR < aar101) {
-      deltaUsdcx = deltaUsb * S.M_ETHx * 100n / S.M_USB_ETH;
+      deltaUsdcx = deltaUsd * S.M_ETHx * 100n / S.M_USD_ETH;
     }
     else {
       let now = await time.latest();
       const RateR = await vf.settings.vaultParamValue(await vf.ethVault.getAddress(), encodeBytes32String("RateR"));
       const r = RateR * (BigInt(now) - S.AARBelowSafeLineTime) / BigInt(60 * 60);
-      deltaUsdcx = deltaUsb * (S.M_ETHx) * (
+      deltaUsdcx = deltaUsd * (S.M_ETHx) * (
         power(S.AARDecimals) + r
       ) / power(S.AARDecimals) / (
-        S.M_ETH * (S.P_ETH) / power(S.P_ETH_DECIMALS) - S.M_USB_ETH
+        S.M_ETH * (S.P_ETH) / power(S.P_ETH_DECIMALS) - S.M_USD_ETH
       );
     }
 
@@ -200,15 +200,15 @@ describe("Vaults", () => {
 
   // mint pair
   const expectMintPair = async (assetAmount: string, price: bigint) => {
-    const { vaultQuery, ethVault, Alice, usb, ethx } = vf;
+    const { vaultQuery, ethVault, Alice, usd, ethx } = vf;
     await mockPrice(ethVault, price);
     const S = await dumpVaultState(ethVault, vaultQuery);
 
     let ethDepositAmount = ethers.parseEther(assetAmount);
-    let [expectedUsbAmount, expectedEthxAmount] = expectCalcMintPair(assetAmount, S);
+    let [expectedUsdAmount, expectedEthxAmount] = expectCalcMintPair(assetAmount, S);
     let calcOut = await vaultQuery.calcMintPairs(await ethVault.getAddress(), ethDepositAmount);
     
-    expectBigNumberEquals(expectedUsbAmount, calcOut[1]);
+    expectBigNumberEquals(expectedUsdAmount, calcOut[1]);
     expectBigNumberEquals(expectedEthxAmount, calcOut[2]);
     
     await expect(ethVault.connect(Alice).mintPairs(ethDepositAmount, { value: ethDepositAmount / 2n })).to.be.rejected;
@@ -216,34 +216,34 @@ describe("Vaults", () => {
     const mint = ethVault.connect(Alice).mintPairs(ethDepositAmount, { value: ethDepositAmount });
   
     await expect(mint)
-      .to.changeTokenBalance(usb, Alice, expectedUsbAmount);
+      .to.changeTokenBalance(usd, Alice, expectedUsdAmount);
     await expect(mint)
       .to.changeTokenBalance(ethx, Alice, expectedEthxAmount);
     await expect(mint)
-      .to.emit(ethVault, "UsbMinted")
-      .withArgs(Alice.address, ethDepositAmount, expectedUsbAmount, anyValue, S.P_ETH, PRICE_DECIMALS)
+      .to.emit(ethVault, "UsdMinted")
+      .withArgs(Alice.address, ethDepositAmount, expectedUsdAmount, anyValue, S.P_ETH, PRICE_DECIMALS)
       .to.emit(ethVault, "MarginTokenMinted")
       .withArgs(Alice.address, ethDepositAmount, expectedEthxAmount, S.P_ETH, PRICE_DECIMALS);
   };
 
-  // mint usb
-  const expectMintUsbAARU = async (assetAmount: string, price: bigint) => {
-    const { vaultQuery, ethVault, Alice, usb } = vf;
+  // mint usd
+  const expectMintUsdAARU = async (assetAmount: string, price: bigint) => {
+    const { vaultQuery, ethVault, Alice, usd } = vf;
     await mockPrice(ethVault, price);
     const S = await dumpVaultState(ethVault, vaultQuery);
     let ethDepositAmount = ethers.parseEther(assetAmount);
-    expect(S.mode).to.equal(3, "Not support mint usb aaru");
-    const expectedUsbAmount = expectCalcMintUsbAARU(assetAmount, S);
-    const calcOut = await vaultQuery.calcMintUsbAboveAARU(await ethVault.getAddress(), ethDepositAmount);
-    expectBigNumberEquals(expectedUsbAmount, calcOut[1]);
+    expect(S.mode).to.equal(3, "Not support mint usd aaru");
+    const expectedUsdAmount = expectCalcMintUsdAARU(assetAmount, S);
+    const calcOut = await vaultQuery.calcMintUsdAboveAARU(await ethVault.getAddress(), ethDepositAmount);
+    expectBigNumberEquals(expectedUsdAmount, calcOut[1]);
     
-    const tx = ethVault.connect(Alice).mintUsbAboveAARU(ethDepositAmount, { value: ethDepositAmount });
+    const tx = ethVault.connect(Alice).mintUsdAboveAARU(ethDepositAmount, { value: ethDepositAmount });
     await expect(tx)
       // .to.changeEtherBalances([Alice, ethVault], [ethDepositAmount * (-1), ethDepositAmount])
-      .to.changeTokenBalance(usb, Alice, expectedUsbAmount);
+      .to.changeTokenBalance(usd, Alice, expectedUsdAmount);
     await expect(tx)
-      .to.emit(ethVault, "UsbMinted")
-      .withArgs(Alice.address, ethDepositAmount, expectedUsbAmount, anyValue, S.P_ETH, PRICE_DECIMALS);
+      .to.emit(ethVault, "UsdMinted")
+      .withArgs(Alice.address, ethDepositAmount, expectedUsdAmount, anyValue, S.P_ETH, PRICE_DECIMALS);
   };
 
   // mint xtoken
@@ -266,45 +266,45 @@ describe("Vaults", () => {
       .withArgs(Alice.address, ethDepositAmount, expectedXtokenAmount, S.P_ETH, PRICE_DECIMALS);
   };
 
-  // redeem ByPairWithUsb
-  const expectRedeemByPairWithUsb = async (usbAmount: string, price: bigint) => {
-    const { vaultQuery, ethVault, Alice, usb, ethx } = vf;
+  // redeem ByPairWithUsd
+  const expectRedeemByPairWithUsd = async (usdAmount: string, price: bigint) => {
+    const { vaultQuery, ethVault, Alice, usd, ethx } = vf;
     await mockPrice(ethVault, price);
     const S = await dumpVaultState(ethVault, vaultQuery);
-    const usbInput = parseEther(usbAmount);
-    const xInput = await vaultQuery.calcPairdMarginTokenAmount(await ethVault.getAddress(), usbInput);
+    const usdInput = parseEther(usdAmount);
+    const xInput = await vaultQuery.calcPairdMarginTokenAmount(await ethVault.getAddress(), usdInput);
     const [, assetOut] = await vaultQuery.calcPairedRedeemAssetAmount(await ethVault.getAddress(), xInput);
-    const [expectXInput, expectAssetOut] = expectCalcRedeemByPairWithUsb(usbAmount, S);
+    const [expectXInput, expectAssetOut] = expectCalcRedeemByPairWithUsd(usdAmount, S);
     expectBigNumberEquals(xInput, expectXInput);
     expectBigNumberEquals(assetOut, expectAssetOut);
     const shouldAssetOut = subFee(assetOut, S);
     await ethx.connect(Alice).approve(await ethVault.getAddress(), xInput);
-    await usb.connect(Alice).approve(await ethVault.getAddress(), usbInput);
+    await usd.connect(Alice).approve(await ethVault.getAddress(), usdInput);
     
-    const tx = ethVault.connect(Alice).redeemByPairsWithExpectedUsbAmount(usbInput);
+    const tx = ethVault.connect(Alice).redeemByPairsWithExpectedUsdAmount(usdInput);
     await expect(tx)
       // .to.changeEtherBalances([Alice, ethVault], [shouldAssetOut, shouldAssetOut * (-1)])
-      .to.changeTokenBalances(usb, [Alice], [-usbInput]);
+      .to.changeTokenBalances(usd, [Alice], [-usdInput]);
     await expect(tx)
       .to.changeTokenBalances(ethx, [Alice], [-xInput]);
   };
 
-  // redeem By usb
-  const expectRedeemByUsbAARS = async (usbAmount: string, price: bigint) => {
-    const { vaultQuery, ethVault, Alice, usb } = vf;
+  // redeem By usd
+  const expectRedeemByUsdAARS = async (usdAmount: string, price: bigint) => {
+    const { vaultQuery, ethVault, Alice, usd } = vf;
     await mockPrice(ethVault, price);
     const S = await dumpVaultState(ethVault, vaultQuery);
-    expect(S.mode).to.equal(2, "Not support redeem by usb aars");
-    const usbInput = parseEther(usbAmount);
-    const [, assetOut] = await vaultQuery.calcRedeemByUsbBelowAARS(await ethVault.getAddress(), usbInput);
-    const expectAssetOut = expectCalcRedeemByUsbAARS(usbAmount, S);
+    expect(S.mode).to.equal(2, "Not support redeem by usd aars");
+    const usdInput = parseEther(usdAmount);
+    const [, assetOut] = await vaultQuery.calcRedeemByUsdBelowAARS(await ethVault.getAddress(), usdInput);
+    const expectAssetOut = expectCalcRedeemByUsdAARS(usdAmount, S);
     expectBigNumberEquals(assetOut, expectAssetOut);
     const shouldAssetOut = subFee(assetOut, S);
-    await usb.connect(Alice).approve(await ethVault.getAddress(), usbInput);
+    await usd.connect(Alice).approve(await ethVault.getAddress(), usdInput);
     
-    await expect(ethVault.connect(Alice).redeemByUsbBelowAARS(usbInput))
+    await expect(ethVault.connect(Alice).redeemByUsdBelowAARS(usdInput))
       // .to.changeEtherBalances([Alice, ethVault], [shouldAssetOut, -shouldAssetOut])
-      .to.changeTokenBalances(usb, [Alice], [-usbInput]);
+      .to.changeTokenBalances(usd, [Alice], [-usdInput]);
   };
 
   // redeem By xtoken
@@ -325,35 +325,35 @@ describe("Vaults", () => {
       .to.changeTokenBalances(ethx, [Alice], [-xInput]);
   };
 
-  const expectUsbToEthxSuspended = async (deltaUsbAmount: string, price: bigint) => {
-    const { settings, vaultQuery, ethVault, Alice, usb } = vf;
+  const expectUsdToEthxSuspended = async (deltaUsdAmount: string, price: bigint) => {
+    const { settings, vaultQuery, ethVault, Alice, usd } = vf;
     await mockPrice(ethVault, price);
     const S = await dumpVaultState(ethVault, vaultQuery);
     expect([VaultMode.AdjustmentAboveAARU, VaultMode.AdjustmentBelowAARS]).to.be.includes(Number(S.mode));
 
-    const deltaUsb = parseUnits(deltaUsbAmount, await usb.decimals());
-    await expect(vaultQuery.connect(Alice).calcUsbToMarginTokens(await ethVault.getAddress(), await settings.getAddress(), deltaUsb)).to.be.revertedWith("Conditional Discount Purchase suspended");
-    await expect(ethVault.connect(Alice).usbToMarginTokens(deltaUsb)).to.be.revertedWith("Conditional Discount Purchase suspended");
+    const deltaUsd = parseUnits(deltaUsdAmount, await usd.decimals());
+    await expect(vaultQuery.connect(Alice).calcUsdToMarginTokens(await ethVault.getAddress(), await settings.getAddress(), deltaUsd)).to.be.revertedWith("Conditional Discount Purchase suspended");
+    await expect(ethVault.connect(Alice).usdToMarginTokens(deltaUsd)).to.be.revertedWith("Conditional Discount Purchase suspended");
   };
 
-  const expectUsbToEthx = async (deltaUsbAmount: string, price: bigint) => {
-    const { settings, vaultQuery, ethVault, Alice, usb } = vf;
+  const expectUsdToEthx = async (deltaUsdAmount: string, price: bigint) => {
+    const { settings, vaultQuery, ethVault, Alice, usd } = vf;
     await mockPrice(ethVault, price);
     const S = await dumpVaultState(ethVault, vaultQuery);
     // expect(S.AAR).to.be.lt(S.AARS);
     expect([VaultMode.AdjustmentAboveAARU, VaultMode.AdjustmentBelowAARS]).to.be.includes(Number(S.mode));
 
-    const deltaUsb = parseUnits(deltaUsbAmount, await usb.decimals());
-    const expectedEthxAmount = await expectCalcUsbToEthxAmount(deltaUsb, S);
-    const [, deltaEthx] = await vaultQuery.calcUsbToMarginTokens(await ethVault.getAddress(), await settings.getAddress(), deltaUsb);
+    const deltaUsd = parseUnits(deltaUsdAmount, await usd.decimals());
+    const expectedEthxAmount = await expectCalcUsdToEthxAmount(deltaUsd, S);
+    const [, deltaEthx] = await vaultQuery.calcUsdToMarginTokens(await ethVault.getAddress(), await settings.getAddress(), deltaUsd);
     expectBigNumberEquals(expectedEthxAmount, deltaEthx);
     
-    const tx = ethVault.connect(Alice).usbToMarginTokens(deltaUsb);
+    const tx = ethVault.connect(Alice).usdToMarginTokens(deltaUsd);
     await expect(tx)
       // .to.changeTokenBalance(ethx, Alice, deltaEthx)
-      .to.changeTokenBalance(usb, Alice, -deltaUsb);
+      .to.changeTokenBalance(usd, Alice, -deltaUsd);
     await expect(tx)
-      .to.emit(ethVault, "UsbToMarginTokens").withArgs(Alice.address, deltaUsb, anyValue, S.P_ETH, PRICE_DECIMALS);
+      .to.emit(ethVault, "UsdToMarginTokens").withArgs(Alice.address, deltaUsd, anyValue, S.P_ETH, PRICE_DECIMALS);
   };
 
   it("First mint work", async () => {
@@ -389,8 +389,8 @@ describe("Vaults", () => {
 
     console.log(`\nRebase $ETH by 1% increase`);
     await mockRebaseEthVaultV2(1);
-    console.log(`Price: 2200; AAR > 150%, mint $USB with 1 $ETH`);
-    await expectMintUsbAARU("1", 2200n);
+    console.log(`Price: 2200; AAR > 150%, mint $zUSD with 1 $ETH`);
+    await expectMintUsdAARU("1", 2200n);
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
     console.log(`\nRebase $ETH by 1% increase`);
@@ -407,15 +407,15 @@ describe("Vaults", () => {
     console.log(`\nPrice: 1100; AAR (95%) < AARS (130%), conditional discount purchase suspended`);
     // fast forward by 10 minutes
     await time.increase(10 * 60);
-    await expectUsbToEthxSuspended("50", 1100n);
+    await expectUsdToEthxSuspended("50", 1100n);
 
-    console.log(`\nPrice: 1100; AAR (95%) < 101%, 30 minutes later, swap $USB to $ETHx`);
+    console.log(`\nPrice: 1100; AAR (95%) < 101%, 30 minutes later, swap $zUSD to $ETHx`);
     await time.increase(30 * 10 * 60);
-    await expectUsbToEthx("1000", 1100n);
+    await expectUsdToEthx("1000", 1100n);
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
-    console.log(`\nPrice: 1100; AAR (103%) > 101%, swap $USB to $ETHx`);
-    await expectUsbToEthx("1000", 1100n);
+    console.log(`\nPrice: 1100; AAR (103%) > 101%, swap $zUSD to $ETHx`);
+    await expectUsdToEthx("1000", 1100n);
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
     console.log(`\nPrice: 1400; AAR (145%) within [130%, 150%], mint pairs with 1 $ETH`);
@@ -426,8 +426,8 @@ describe("Vaults", () => {
      $ETH Pool:
       P_ETH: 1400.0
       M_ETH: 11.25311804
-      M_USB: 10826.713371965798489281
-      M_USB_ETH: 10826.713371965798489281
+      M_USD: 10826.713371965798489281
+      M_USD_ETH: 10826.713371965798489281
       M_ETHx: 247.663618259908985434
       AAR: 145.51383%
       APY: 0.0
@@ -457,9 +457,9 @@ describe("Vaults", () => {
     console.log(`ETH Vault asset balance: ${ethers.formatEther(await vf.ethVault.assetBalance())} $ETH`);
     console.log(`ETH Vault token pot balance: ${ethers.formatEther(await ethers.provider.getBalance(await vf.ethVault.tokenPot()))} $ETH`);
     console.log(`ETH Vault PtyPoolSellHigh Alice staking balance: ${ethers.formatEther(await vf.ethVaultPtyPoolSellHigh.userStakingBalance(vf.Alice.address))}`);
-    console.log(`ETH Vault PtyPoolSellHigh Alice earned: ${ethers.formatUnits(await vf.ethVaultPtyPoolSellHigh.earnedMatchedToken(vf.Alice.address), 18)} $USB`);
+    console.log(`ETH Vault PtyPoolSellHigh Alice earned: ${ethers.formatUnits(await vf.ethVaultPtyPoolSellHigh.earnedMatchedToken(vf.Alice.address), 18)} $zUSD`);
     console.log(`ETH Vault PtyPoolSellHigh Bob staking balance: ${ethers.formatEther(await vf.ethVaultPtyPoolSellHigh.userStakingBalance(vf.Bob.address))}`);
-    console.log(`ETH Vault PtyPoolSellHigh Bob earned: ${ethers.formatUnits(await vf.ethVaultPtyPoolSellHigh.earnedMatchedToken(vf.Bob.address), 18)} $USB`);
+    console.log(`ETH Vault PtyPoolSellHigh Bob earned: ${ethers.formatUnits(await vf.ethVaultPtyPoolSellHigh.earnedMatchedToken(vf.Bob.address), 18)} $zUSD`);
 
     console.log(`\nBob stakes 10 $ETH to PtyPoolSellHigh`);
     await expect(vf.ethVaultPtyPoolSellHigh.connect(vf.Bob).stake(ethers.parseEther("10"), { value: ethers.parseUnits("1") })).to.be.rejected;
@@ -478,17 +478,17 @@ describe("Vaults", () => {
     console.log(`ETH Vault $ETH balance: ${ethers.formatEther(await ethers.provider.getBalance(await vf.ethVault.getAddress()))} $ETH`);
     console.log(`ETH Vault token pot $ETH balance: ${ethers.formatEther(await ethers.provider.getBalance(await vf.ethVault.tokenPot()))} $ETH`);
     console.log(`ETH Vault PtyPoolSellHigh Alice staking balance: ${ethers.formatEther(await vf.ethVaultPtyPoolSellHigh.userStakingBalance(vf.Alice.address))}`);
-    console.log(`ETH Vault PtyPoolSellHigh Alice earned: ${ethers.formatUnits(await vf.ethVaultPtyPoolSellHigh.earnedMatchedToken(vf.Alice.address), 18)} $USB`);
+    console.log(`ETH Vault PtyPoolSellHigh Alice earned: ${ethers.formatUnits(await vf.ethVaultPtyPoolSellHigh.earnedMatchedToken(vf.Alice.address), 18)} $zUSD`);
     console.log(`ETH Vault PtyPoolSellHigh Bob staking balance: ${ethers.formatEther(await vf.ethVaultPtyPoolSellHigh.userStakingBalance(vf.Bob.address))}`);
-    console.log(`ETH Vault PtyPoolSellHigh Bob earned: ${ethers.formatUnits(await vf.ethVaultPtyPoolSellHigh.earnedMatchedToken(vf.Bob.address), 18)} $USB`);
+    console.log(`ETH Vault PtyPoolSellHigh Bob earned: ${ethers.formatUnits(await vf.ethVaultPtyPoolSellHigh.earnedMatchedToken(vf.Bob.address), 18)} $zUSD`);
     await expect(vf.ethVaultPtyPoolSellHigh.connect(vf.Bob).exit()).not.to.be.rejected;
 
     /**
     $ETH Pool:
       P_ETH: 2000.0
       M_ETH: 18.140683358818174467
-      M_USB: 24187.577811757565955874
-      M_USB_ETH: 24187.577811757565955874
+      M_USD: 24187.577811757565955874
+      M_USD_ETH: 24187.577811757565955874
       M_ETHx: 256.448109548271992075
       AAR: 150.00%
       APY: 0.0
@@ -499,24 +499,24 @@ describe("Vaults", () => {
     await printVaultState(vf.ethVault, vf.vaultQuery);
     console.log(`ETH Vault asset balance: ${ethers.formatEther(await vf.ethVault.assetBalance())} $ETH`);
     console.log(`ETH Vault token pot balance: ${ethers.formatEther(await ethers.provider.getBalance(await vf.ethVault.tokenPot()))} $ETH`);
-    const ptyPoolBuyLowPtyPoolMinUsbAmount = await vf.settings.vaultParamValue(await vf.ethVault.getAddress(), encodeBytes32String("PtyPoolMinUsbAmount"));
-    console.log(`ETH Vault PtyPoolBuyLow minimal $USB amount: ${ethers.formatUnits(ptyPoolBuyLowPtyPoolMinUsbAmount, await vf.settings.decimals())} $USB`);
+    const ptyPoolBuyLowPtyPoolMinUsdAmount = await vf.settings.vaultParamValue(await vf.ethVault.getAddress(), encodeBytes32String("PtyPoolMinUsdAmount"));
+    console.log(`ETH Vault PtyPoolBuyLow minimal $zUSD amount: ${ethers.formatUnits(ptyPoolBuyLowPtyPoolMinUsdAmount, await vf.settings.decimals())} $zUSD`);
 
-    await expect(vf.usb.connect(vf.Alice).transfer(vf.Bob.address, ethers.parseUnits("1000", await vf.usb.decimals()))).not.to.be.rejected;
-    await expect(vf.usb.connect(vf.Alice).approve(vf.ethVaultPtyPoolBuyLow.getAddress(), ethers.parseUnits("1000000", await vf.usb.decimals()))).not.to.be.rejected;
-    await expect(vf.usb.connect(vf.Bob).approve(vf.ethVaultPtyPoolBuyLow.getAddress(), ethers.parseUnits("1000000", await vf.usb.decimals()))).not.to.be.rejected;
-    await expect(vf.ethVaultPtyPoolBuyLow.connect(vf.Alice).stake(ethers.parseUnits("100", await vf.usb.decimals()))).not.to.be.rejected;
-    await expect(vf.ethVaultPtyPoolBuyLow.connect(vf.Bob).stake(ethers.parseUnits("100", await vf.usb.decimals()))).not.to.be.rejected;
+    await expect(vf.usd.connect(vf.Alice).transfer(vf.Bob.address, ethers.parseUnits("1000", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.usd.connect(vf.Alice).approve(vf.ethVaultPtyPoolBuyLow.getAddress(), ethers.parseUnits("1000000", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.usd.connect(vf.Bob).approve(vf.ethVaultPtyPoolBuyLow.getAddress(), ethers.parseUnits("1000000", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.ethVaultPtyPoolBuyLow.connect(vf.Alice).stake(ethers.parseUnits("100", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.ethVaultPtyPoolBuyLow.connect(vf.Bob).stake(ethers.parseUnits("100", await vf.usd.decimals()))).not.to.be.rejected;
     await expectMintPair("0.1", 1600n);
-    console.log(`ETH Vault PtyPoolBuyLow Alice staking balance: ${ethers.formatUnits(await vf.ethVaultPtyPoolBuyLow.userStakingBalance(vf.Alice.address), 18)} $USB`);
+    console.log(`ETH Vault PtyPoolBuyLow Alice staking balance: ${ethers.formatUnits(await vf.ethVaultPtyPoolBuyLow.userStakingBalance(vf.Alice.address), 18)} $zUSD`);
     console.log(`ETH Vault PtyPoolBuyLow Alice earned: ${ethers.formatEther(await vf.ethVaultPtyPoolBuyLow.earnedMatchedToken(vf.Alice.address))} $ETH`);
-    console.log(`ETH Vault PtyPoolBuyLow Bob staking balance: ${ethers.formatUnits(await vf.ethVaultPtyPoolBuyLow.userStakingBalance(vf.Bob.address), 18)} $USB`);
+    console.log(`ETH Vault PtyPoolBuyLow Bob staking balance: ${ethers.formatUnits(await vf.ethVaultPtyPoolBuyLow.userStakingBalance(vf.Bob.address), 18)} $zUSD`);
     console.log(`ETH Vault PtyPoolBuyLow Bob earned: ${ethers.formatEther(await vf.ethVaultPtyPoolBuyLow.earnedMatchedToken(vf.Bob.address))} $ETH`);
 
-    console.log(`Alice $USB balance: ${ethers.formatUnits(await vf.usb.balanceOf(vf.Alice.address), await vf.usb.decimals())} $USB`);
-    console.log(`Bob $USB balance: ${ethers.formatUnits(await vf.usb.balanceOf(vf.Bob.address), await vf.usb.decimals())} $USB`);
-    await expect(vf.ethVaultPtyPoolBuyLow.connect(vf.Alice).stake(ethers.parseUnits("10000", await vf.usb.decimals()))).not.to.be.rejected;
-    await expect(vf.ethVaultPtyPoolBuyLow.connect(vf.Bob).stake(ethers.parseUnits("10000", await vf.usb.decimals()))).not.to.be.rejected;
+    console.log(`Alice $zUSD balance: ${ethers.formatUnits(await vf.usd.balanceOf(vf.Alice.address), await vf.usd.decimals())} $zUSD`);
+    console.log(`Bob $zUSD balance: ${ethers.formatUnits(await vf.usd.balanceOf(vf.Bob.address), await vf.usd.decimals())} $zUSD`);
+    await expect(vf.ethVaultPtyPoolBuyLow.connect(vf.Alice).stake(ethers.parseUnits("10000", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.ethVaultPtyPoolBuyLow.connect(vf.Bob).stake(ethers.parseUnits("10000", await vf.usd.decimals()))).not.to.be.rejected;
 
     console.log(`\nBefore PtyPoolBuyLow triggered`);
     await printVaultState(vf.ethVault, vf.vaultQuery);
@@ -525,9 +525,9 @@ describe("Vaults", () => {
     await printVaultState(vf.ethVault, vf.vaultQuery);
     console.log(`ETH Vault asset balance: ${ethers.formatEther(await vf.ethVault.assetBalance())} $ETH`);
     console.log(`ETH Vault token pot balance: ${ethers.formatEther(await ethers.provider.getBalance(await vf.ethVault.tokenPot()))} $ETH`);
-    console.log(`ETH Vault PtyPoolBuyLow Alice staking balance: ${ethers.formatUnits(await vf.ethVaultPtyPoolBuyLow.userStakingBalance(vf.Alice.address), 18)} $USB`);
+    console.log(`ETH Vault PtyPoolBuyLow Alice staking balance: ${ethers.formatUnits(await vf.ethVaultPtyPoolBuyLow.userStakingBalance(vf.Alice.address), 18)} $zUSD`);
     console.log(`ETH Vault PtyPoolBuyLow Alice earned: ${ethers.formatEther(await vf.ethVaultPtyPoolBuyLow.earnedMatchedToken(vf.Alice.address))} $ETH`);
-    console.log(`ETH Vault PtyPoolBuyLow Bob staking balance: ${ethers.formatUnits(await vf.ethVaultPtyPoolBuyLow.userStakingBalance(vf.Bob.address), 18)} $USB`);
+    console.log(`ETH Vault PtyPoolBuyLow Bob staking balance: ${ethers.formatUnits(await vf.ethVaultPtyPoolBuyLow.userStakingBalance(vf.Bob.address), 18)} $zUSD`);
     console.log(`ETH Vault PtyPoolBuyLow Bob earned: ${ethers.formatEther(await vf.ethVaultPtyPoolBuyLow.earnedMatchedToken(vf.Bob.address))} $ETH`);
 
   });
@@ -538,18 +538,18 @@ describe("Vaults", () => {
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
     // to Low
-    await expectRedeemByPairWithUsb("1000", 1800n);
+    await expectRedeemByPairWithUsd("1000", 1800n);
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
     // Already to low
-    await expectRedeemByUsbAARS("1000", 1800n);
+    await expectRedeemByUsdAARS("1000", 1800n);
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
-    await expectRedeemByPairWithUsb("1000", 1800n);
+    await expectRedeemByPairWithUsd("1000", 1800n);
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
     // expect to High
-    await expectRedeemByPairWithUsb("100", 3200n);
+    await expectRedeemByPairWithUsd("100", 3200n);
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
     // Already to High
@@ -557,7 +557,7 @@ describe("Vaults", () => {
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
     // expect to stable
-    await expectRedeemByPairWithUsb("100", 1700n);
+    await expectRedeemByPairWithUsd("100", 1700n);
     await printVaultState(vf.ethVault, vf.vaultQuery);
 
     // Already to stable

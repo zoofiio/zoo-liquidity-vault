@@ -8,9 +8,9 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs';
 describe('stETH', () => {
 
   it('stETH works', async () => {
-    const { protocol, usb, stETH, Alice, Bob, Caro } = await loadFixture(deployBaseContractsFixture);
+    const { protocol, usd, stETH, Alice, Bob, Caro } = await loadFixture(deployBaseContractsFixture);
 
-    let trans = await protocol.connect(Alice).initialize(await usb.getAddress());
+    let trans = await protocol.connect(Alice).initialize(await usd.getAddress());
     await trans.wait();
 
     // Alice mint 100 $stETH to Bob

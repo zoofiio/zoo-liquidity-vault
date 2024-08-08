@@ -8,9 +8,9 @@ import { PlainVault__factory } from "../typechain";
 describe('PlainVault', () => {
 
   it('PlainVault works with $ETH', async () => {
-    const { protocol, settings, usb, erc20, Alice, Bob, Caro } = await loadFixture(deployBaseContractsFixture);
+    const { protocol, settings, usd, erc20, Alice, Bob, Caro } = await loadFixture(deployBaseContractsFixture);
 
-    let trans = await protocol.connect(Alice).initialize(await usb.getAddress());
+    let trans = await protocol.connect(Alice).initialize(await usd.getAddress());
     await trans.wait();
 
     const PlainVaultFactory = await ethers.getContractFactory("PlainVault");
@@ -89,9 +89,9 @@ describe('PlainVault', () => {
   });
 
   it('PlainVault works with ERC20', async () => {
-    const { protocol, settings, usb, erc20, Alice, Bob, Caro } = await loadFixture(deployBaseContractsFixture);
+    const { protocol, settings, usd, erc20, Alice, Bob, Caro } = await loadFixture(deployBaseContractsFixture);
 
-    let trans = await protocol.connect(Alice).initialize(await usb.getAddress());
+    let trans = await protocol.connect(Alice).initialize(await usd.getAddress());
     await trans.wait();
 
     const PlainVaultFactory = await ethers.getContractFactory("PlainVault");

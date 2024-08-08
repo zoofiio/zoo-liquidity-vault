@@ -18,7 +18,7 @@ describe("Ownable", () => {
 
   it("Protocol ownable work", async () => {
     const {
-      Alice, Bob, usb, protocol, settings, ethVault,
+      Alice, Bob, usd, protocol, settings, ethVault,
       ethx, ethVaultPtyPoolSellHigh, ethVaultPtyPoolBuyLow,
       usdcx, usdcVault
     } = await loadFixture(deployAllContractsFixture);
@@ -27,7 +27,7 @@ describe("Ownable", () => {
     expect(protocolOwner).to.equal(await protocol.protocolOwner(), "Protocol owner is Alice");
     expect(protocolOwner).to.equal(Alice.address, "Protocol owner is Alice");
 
-    const contracts = [usb, settings, ethVault, ethx, ethVaultPtyPoolSellHigh, ethVaultPtyPoolBuyLow, usdcx, usdcVault];
+    const contracts = [usd, settings, ethVault, ethx, ethVaultPtyPoolSellHigh, ethVaultPtyPoolBuyLow, usdcx, usdcVault];
     for (const contract of contracts) {
       const owner = await contract.owner();
       expect(owner).to.equal(protocolOwner, "Contract owner is protocol owner Alice");
@@ -50,7 +50,7 @@ describe("Ownable", () => {
 
   it("Privileged operations", async () => {
     const {
-      Alice, Bob, protocol, settings, vaultCalculator, ethVault, usb, ethx, usdcVault
+      Alice, Bob, protocol, settings, vaultCalculator, ethVault, usd, ethx, usdcVault
     } = await loadFixture(deployAllContractsFixture);
 
     let protocolOwner = await protocol.owner();
@@ -119,15 +119,15 @@ describe("Ownable", () => {
     // Only admin could pause a Vault
     await expect(dummyVault.connect(Bob).pauseMint()).to.be.revertedWith("Ownable: caller is not the owner");
     await expect(dummyVault.connect(Bob).pauseRedeem()).to.be.revertedWith("Ownable: caller is not the owner");
-    await expect(dummyVault.connect(Bob).pauseUsbToMarginTokens()).to.be.revertedWith("Ownable: caller is not the owner"); 
+    await expect(dummyVault.connect(Bob).pauseUsdToMarginTokens()).to.be.revertedWith("Ownable: caller is not the owner"); 
     await expect(dummyVault.connect(Alice).pauseMint())
       .to.emit(dummyVault, "MintPaused")
       .withArgs();
     await expect(dummyVault.connect(Alice).pauseRedeem())
       .to.emit(dummyVault, "RedeemPaused")
       .withArgs();
-    await expect(dummyVault.connect(Alice).pauseUsbToMarginTokens())
-      .to.emit(dummyVault, "UsbToMarginTokensPaused")
+    await expect(dummyVault.connect(Alice).pauseUsdToMarginTokens())
+      .to.emit(dummyVault, "UsdToMarginTokensPaused")
       .withArgs();
     expect(await dummyVault.paused()).to.deep.equal([true, true, true], "Mint and redeem is paused");
     await expect(dummyVault.connect(Alice).unpauseMint())
@@ -136,8 +136,8 @@ describe("Ownable", () => {
     await expect(dummyVault.connect(Alice).unpauseRedeem())
       .to.emit(dummyVault, "RedeemUnpaused")
       .withArgs();
-    await expect(dummyVault.connect(Alice).unpauseUsbToMarginTokens())
-      .to.emit(dummyVault, "UsbToMarginTokensUnpaused")
+    await expect(dummyVault.connect(Alice).unpauseUsdToMarginTokens())
+      .to.emit(dummyVault, "UsdToMarginTokensUnpaused")
       .withArgs();
     expect(await dummyVault.paused()).to.deep.equal([false, false, false], "Mint and redeem is unpaused");
 
@@ -146,7 +146,7 @@ describe("Ownable", () => {
     const ptyPoolSellHigh = PtyPoolSellHigh__factory.connect(await ethVault.ptyPoolSellHigh(), provider);
     await expect(ptyPoolBuyLow.connect(Bob).rescue(nativeTokenAddress, Alice.address)).to.be.revertedWith("Ownable: caller is not the owner");
     await expect(ptyPoolSellHigh.connect(Bob).rescue(nativeTokenAddress, Alice.address)).to.be.revertedWith("Ownable: caller is not the owner");
-    await expect(ptyPoolBuyLow.connect(Alice).rescue(await usb.getAddress(), Alice.address)).to.be.revertedWith("Cannot rescue staking or yield tokens");
+    await expect(ptyPoolBuyLow.connect(Alice).rescue(await usd.getAddress(), Alice.address)).to.be.revertedWith("Cannot rescue staking or yield tokens");
     await expect(ptyPoolSellHigh.connect(Alice).rescue(await ethx.getAddress(), Alice.address)).to.be.revertedWith("Cannot rescue staking or yield tokens");
     
     const amount = ethers.parseUnits("100", await dmy.decimals());

@@ -87,16 +87,16 @@ export async function deployBaseContractsFixture() {
   const usd = Usd__factory.connect(await Usd.getAddress(), provider);
 
   const MockPriceFeedFactory = await ethers.getContractFactory("MockPriceFeed");
-  const EthPriceFeedMock = await MockPriceFeedFactory.deploy();
+  const EthPriceFeedMock = await MockPriceFeedFactory.deploy(await protocol.getAddress());
   const ethPriceFeed = MockPriceFeed__factory.connect(await EthPriceFeedMock.getAddress(), provider);
 
-  const stETHPriceFeedMock = await MockPriceFeedFactory.deploy();
+  const stETHPriceFeedMock = await MockPriceFeedFactory.deploy(await protocol.getAddress());
   const stethPriceFeed = MockPriceFeed__factory.connect(await stETHPriceFeedMock.getAddress(), provider);
 
-  const WbtcPriceFeedMock = await MockPriceFeedFactory.deploy();
+  const WbtcPriceFeedMock = await MockPriceFeedFactory.deploy(await protocol.getAddress());
   const wbtcPriceFeed = MockPriceFeed__factory.connect(await WbtcPriceFeedMock.getAddress(), provider);
 
-  const UsdcPriceFeedMock = await MockPriceFeedFactory.deploy();
+  const UsdcPriceFeedMock = await MockPriceFeedFactory.deploy(await protocol.getAddress());
   const usdcPriceFeed = MockPriceFeed__factory.connect(await UsdcPriceFeedMock.getAddress(), provider);
 
   // let trans = await protocol.connect(Alice).initialize(await Usd.getAddress());

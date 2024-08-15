@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../interfaces/IPriceFeed.sol";
+import "../settings/ProtocolOwner.sol";
 
-contract MockPriceFeed is IPriceFeed, Ownable, ReentrancyGuard {
+contract MockPriceFeed is IPriceFeed, ProtocolOwner, ReentrancyGuard {
   using EnumerableSet for EnumerableSet.AddressSet;
 
   uint256 internal mockedPrice;
 
   EnumerableSet.AddressSet internal _testers;
 
-  constructor() {
-    _setTester(tx.origin, true);
+  constructor(address _protocol) ProtocolOwner(_protocol) {
+    _setTester(_msgSender(), true);
   }
 
   function decimals() external pure override returns (uint8) {

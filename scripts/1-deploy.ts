@@ -27,7 +27,9 @@ const stableVaults: any[] = [
 let deployer: SignerWithAddress;
 
 const testers: any[] = [
-
+  "0x956Cd653e87269b5984B8e1D2884E1C0b1b94442",
+  "0xc97B447186c59A5Bb905cb193f15fC802eF3D543",
+  "0x1851CbB368C7c49B997064086dA94dBAD90eB9b5"
 ];
 
 
@@ -44,7 +46,7 @@ async function deployValut(
     priceFeedAddress = await deployContract("CommonPriceFeed", [vault.chainlinkPriceFeed], priceFeedName);
   } 
   else {
-    priceFeedAddress = await deployContract("MockPriceFeed", [], priceFeedName);
+    priceFeedAddress = await deployContract("MockPriceFeed", [protocalAddress], priceFeedName);
     const mockPriceFeed = await ethers.getContractAt("MockPriceFeed", priceFeedAddress);
     for (let i = 0; i < _.size(testers); i++) {
       const tester = testers[i];
@@ -139,7 +141,7 @@ async function deployStableValut(
     );
   }
   else {
-    priceFeedAddress = await deployContract("MockPriceFeed", [], priceFeedName);
+    priceFeedAddress = await deployContract("MockPriceFeed", [protocalAddress], priceFeedName);
     const mockPriceFeed = await ethers.getContractAt("MockPriceFeed", priceFeedAddress);
     for (let i = 0; i < _.size(testers); i++) {
       const tester = testers[i];

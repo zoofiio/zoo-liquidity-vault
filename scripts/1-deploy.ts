@@ -36,7 +36,7 @@ const testers: any[] = [
 async function deployValut(
   vault: (typeof vaults)[0],
   settingsAddress: string,
-  protocalAddress: string,
+  protocolAddress: string,
   factoryOptions?: FactoryOptions
 ) {
   const priceFeedName = vault.assetsSymbol + "_PriceFeed";
@@ -46,7 +46,7 @@ async function deployValut(
     priceFeedAddress = await deployContract("CommonPriceFeed", [vault.chainlinkPriceFeed], priceFeedName);
   } 
   else {
-    priceFeedAddress = await deployContract("MockPriceFeed", [protocalAddress], priceFeedName);
+    priceFeedAddress = await deployContract("MockPriceFeed", [protocolAddress], priceFeedName);
     const mockPriceFeed = await ethers.getContractAt("MockPriceFeed", priceFeedAddress);
     for (let i = 0; i < _.size(testers); i++) {
       const tester = testers[i];
@@ -64,7 +64,7 @@ async function deployValut(
   const marginTokenAddress = await deployContract(
     "MarginToken",
     [
-      protocalAddress,
+      protocolAddress,
       settingsAddress,
       vault.marginTokenName,
       vault.marginTokenSymbol,
@@ -76,7 +76,7 @@ async function deployValut(
   const vaultAddress = await deployContract(
     "Vault",
     [
-      protocalAddress,
+      protocolAddress,
       settingsAddress,
       vault.assetsToken,
       marginTokenAddress,
@@ -90,7 +90,7 @@ async function deployValut(
   const belowPoolAddress = await deployContract(
     "PtyPoolBuyLow",
     [
-      protocalAddress,
+      protocolAddress,
       settingsAddress,
       vaultAddress,
       marginTokenAddress,
@@ -102,7 +102,7 @@ async function deployValut(
   const abovePoolAddress = await deployContract(
     "PtyPoolSellHigh",
     [
-      protocalAddress,
+      protocolAddress,
       settingsAddress,
       vaultAddress,
       vault.assetsToken,
@@ -127,7 +127,7 @@ async function deployValut(
 async function deployStableValut(
   vault: (typeof stableVaults)[0],
   settingsAddress: string,
-  protocalAddress: string,
+  protocolAddress: string,
   factoryOptions?: FactoryOptions
 ) {
   const priceFeedName = vault.assetsSymbol + "_PriceFeed";
@@ -141,7 +141,7 @@ async function deployStableValut(
     );
   }
   else {
-    priceFeedAddress = await deployContract("MockPriceFeed", [protocalAddress], priceFeedName);
+    priceFeedAddress = await deployContract("MockPriceFeed", [protocolAddress], priceFeedName);
     const mockPriceFeed = await ethers.getContractAt("MockPriceFeed", priceFeedAddress);
     for (let i = 0; i < _.size(testers); i++) {
       const tester = testers[i];
@@ -159,7 +159,7 @@ async function deployStableValut(
   const marginTokenAddress = await deployContract(
     "MarginToken",
     [
-      protocalAddress,
+      protocolAddress,
       settingsAddress,
       vault.marginTokenName,
       vault.marginTokenSymbol,
@@ -170,7 +170,7 @@ async function deployStableValut(
   const vaultAddress = await deployContract(
     "StableVault",
     [
-      protocalAddress,
+      protocolAddress,
       settingsAddress,
       vault.assetsToken,
       marginTokenAddress,
@@ -194,15 +194,15 @@ async function main() {
   console.log("nonce:", nonce);
 
   // Deploy Protocol
-  const protocalAddress = await deployContract("ZooProtocol", []);
-  const protocol = await ethers.getContractAt("ZooProtocol", protocalAddress);
+  const protocolAddress = await deployContract("ZooProtocol", []);
+  const protocol = await ethers.getContractAt("ZooProtocol", protocolAddress);
 
   //  Deploy Protocol core contracts
-  const protocolSettingsAddress = await deployContract("ProtocolSettings", [protocalAddress, treasuryAddress]);
+  const protocolSettingsAddress = await deployContract("ProtocolSettings", [protocolAddress, treasuryAddress]);
   const settings = await ethers.getContractAt("ProtocolSettings", protocolSettingsAddress);
 
   // Deploy Usd
-  const usdAddress = await deployContract("Usd", [protocalAddress, await settings.getAddress()]);
+  const usdAddress = await deployContract("Usd", [protocolAddress, await settings.getAddress()]);
   const Usd = await ethers.getContractAt("Usd", usdAddress);
 
   // initProtocal Usd
@@ -216,7 +216,7 @@ async function main() {
 
   const vaultCalculatorAddress = await deployContract("VaultCalculator", []);
   for (const vc of vaults) {
-    const ethVaultAddress = await deployValut(vc, protocolSettingsAddress, protocalAddress, {
+    const ethVaultAddress = await deployValut(vc, protocolSettingsAddress, protocolAddress, {
       libraries: {
         VaultCalculator: vaultCalculatorAddress,
       },
@@ -231,7 +231,7 @@ async function main() {
 
   const stableVaultCalculatorAddress = await deployContract("StableVaultCalculator", []);
   for (const vc of stableVaults) {
-    const usdbVaultAddress = await deployStableValut(vc, protocolSettingsAddress, protocalAddress, {
+    const usdbVaultAddress = await deployStableValut(vc, protocolSettingsAddress, protocolAddress, {
       libraries: {
         StableVaultCalculator: stableVaultCalculatorAddress,
       },

@@ -71,5 +71,11 @@
   "VaultQuery": {
     "address": "0xC30Cb272624339d380FBf56277F47B577A9455Df",
     "args": []
+  },
+  "BERA_PriceFeed": {
+    "address": "0x9981fc983a63C8c43a78284a1dD9d2EfC5C6e52a",
+    "args": [
+      "0xC816c35f07a40021e15295229dDb5895c90179ef"
+    ]
   }
 }

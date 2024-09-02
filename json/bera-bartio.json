@@ -77,5 +77,44 @@
     "args": [
       "0xC816c35f07a40021e15295229dDb5895c90179ef"
     ]
+  },
+  "xBERA": {
+    "address": "0x94CB06fBd2c8Ae161d8b3871C090cb4bF0785492",
+    "args": [
+      "0xC816c35f07a40021e15295229dDb5895c90179ef",
+      "0xa96Ffb41dfDe9b33aF3D233eaa05EB8B6798B477",
+      "Zoo xBERA",
+      "xBERA"
+    ]
+  },
+  "BERA_Vault": {
+    "address": "0xBA7aab4bbb87c9499D062057937ab8797b8BfF4C",
+    "args": [
+      "0xC816c35f07a40021e15295229dDb5895c90179ef",
+      "0xa96Ffb41dfDe9b33aF3D233eaa05EB8B6798B477",
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "0x94CB06fBd2c8Ae161d8b3871C090cb4bF0785492",
+      "0x9981fc983a63C8c43a78284a1dD9d2EfC5C6e52a"
+    ]
+  },
+  "BERA_PtyPoolBuyLow": {
+    "address": "0x5841b2119fF4f30021a8A21cC1a826DEcf1ed953",
+    "args": [
+      "0xC816c35f07a40021e15295229dDb5895c90179ef",
+      "0xa96Ffb41dfDe9b33aF3D233eaa05EB8B6798B477",
+      "0xBA7aab4bbb87c9499D062057937ab8797b8BfF4C",
+      "0x94CB06fBd2c8Ae161d8b3871C090cb4bF0785492",
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+    ]
+  },
+  "BERA_PtyPoolSellHigh": {
+    "address": "0xFaA58B694d3fDac5C210687eC994fd6eb3b8c179",
+    "args": [
+      "0xC816c35f07a40021e15295229dDb5895c90179ef",
+      "0xa96Ffb41dfDe9b33aF3D233eaa05EB8B6798B477",
+      "0xBA7aab4bbb87c9499D062057937ab8797b8BfF4C",
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "0x94CB06fBd2c8Ae161d8b3871C090cb4bF0785492"
+    ]
   }
 }

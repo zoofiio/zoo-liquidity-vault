@@ -17,6 +17,7 @@ import "../interfaces/IZooProtocol.sol";
 import "../settings/ProtocolOwner.sol";
 
 contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
+  using Math for uint256;
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
@@ -137,6 +138,12 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
   // $ETH
   function getAccruedMatchingYields() public view returns (uint256) {
     return _accruedMatchingYields;
+  }
+
+  // https://docs.openzeppelin.com/contracts/5.x/erc4626
+  // https://github.com/boringcrypto/YieldBox/blob/master/contracts/YieldBoxRebase.sol
+  function decimalsOffset() public view virtual returns (uint8) {
+    return 8;
   }
 
   /* ========== MUTATIVE FUNCTIONS ========== */
@@ -278,19 +285,19 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
   }
 
   function _getStakingSharesByBalance(uint256 stakingBalance) internal view returns (uint256) {
-    if (_totalStakingBalance() == 0 || _totalStakingShares == 0) return stakingBalance;
-
-    return stakingBalance
-      .mul(_totalStakingShares)
-      .div(_totalStakingBalance());
+    return stakingBalance.mulDiv(
+      _totalStakingShares + 10 ** decimalsOffset(), 
+      _totalStakingBalance() + 1, 
+      Math.Rounding.Down
+    );
   }
 
   function _getStakingBalanceByShares(uint256 stakingShares) internal view returns (uint256) {
-    if (_totalStakingShares == 0) return 0;
-  
-    return stakingShares
-      .mul(_totalStakingBalance())
-      .div(_totalStakingShares);
+    return stakingShares.mulDiv(
+      _totalStakingBalance() + 1,
+      _totalStakingShares + 10 ** decimalsOffset(),
+      Math.Rounding.Down
+    );
   }
 
   /* ========== MODIFIERS ========== */

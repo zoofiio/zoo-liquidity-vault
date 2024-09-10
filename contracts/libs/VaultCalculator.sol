@@ -5,6 +5,7 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./Constants.sol";
 import "../interfaces/IMarginToken.sol";
@@ -14,6 +15,7 @@ import "../interfaces/IUsd.sol";
 import "../interfaces/IVault.sol";
 
 library VaultCalculator {
+  using Math for uint256;
   using SafeMath for uint256;
 
   function vaultAssetTokenDecimals(IVault self) public view returns (uint8) {
@@ -36,7 +38,7 @@ library VaultCalculator {
       return type(uint256).max;
     }
     (uint256 assetTokenPrice, uint256 assetTokenPriceDecimals) = self.assetTokenPrice();
-    return assetTotalAmount.mul(assetTokenPrice).div(10 ** assetTokenPriceDecimals).mul(10 ** self.AARDecimals()).div(self.usdTotalSupply());
+    return assetTotalAmount.mulDiv(assetTokenPrice, 10 ** assetTokenPriceDecimals).mulDiv(10 ** self.AARDecimals(), self.usdTotalSupply());
   }
 
   function getVaultState(IVault self) public view returns (Constants.VaultState memory) {
@@ -67,15 +69,15 @@ library VaultCalculator {
     if (S.M_USD_ETH > 0 && S.M_ETHx > 0) {
       // ΔUSD = ΔETH * M_USD_ETH / M_ETH
       // ΔETHx = ΔUSD * M_ETHx / M_USD_ETH
-      usdOutAmount = assetAmount.mul(S.M_USD_ETH).div(S.M_ETH);
-      marginTokenOutAmount = usdOutAmount.mul(S.M_ETHx).div(S.M_USD_ETH);
+      usdOutAmount = assetAmount.mulDiv(S.M_USD_ETH, S.M_ETH);
+      marginTokenOutAmount = usdOutAmount.mulDiv(S.M_ETHx, S.M_USD_ETH);
     } else {
       // ΔUSD = ΔETH * P_ETH * 1 / AART
       // ΔETHx = ΔETH * (1 - 1 / AART) = ΔETH * (AART - 1) / AART
       Constants.Terms memory T;
-      T.T1 = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS);
-      usdOutAmount = T.T1.mul(10 ** S.AARDecimals).div(S.AART);
-      marginTokenOutAmount = assetAmount.mul(S.AART.sub(10 ** S.AARDecimals)).div(S.AART);
+      T.T1 = assetAmount.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS);
+      usdOutAmount = T.T1.mulDiv(10 ** S.AARDecimals, S.AART);
+      marginTokenOutAmount = assetAmount.mulDiv(S.AART.sub(10 ** S.AARDecimals), S.AART);
     }
     return (S, usdOutAmount, marginTokenOutAmount);
   }
@@ -87,7 +89,7 @@ library VaultCalculator {
     Constants.VaultState memory S = getVaultState(self);
 
     // ΔUSD = ΔETH * P_ETH
-    uint256 usdOutAmount = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS);
+    uint256 usdOutAmount = assetAmount.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS);
     return (S, usdOutAmount);
   }
 
@@ -102,13 +104,13 @@ library VaultCalculator {
     
     if (S.aar >= aar101) { // aar >= 101% 
       // ΔETHx = ΔETH * P_ETH * M_ETHx / (M_ETH * P_ETH - Musd-eth)
-      marginTokenOutAmount = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).mul(S.M_ETHx).div(
-        S.M_ETH.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH)
+      marginTokenOutAmount = assetAmount.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS).mulDiv(S.M_ETHx,
+        S.M_ETH.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH)
       );
     }
     else { //  aar < 101% 
       // ΔETHx = ΔETH * P_ETH * M_ETHx * 100 / Musd-eth
-      marginTokenOutAmount = assetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).mul(S.M_ETHx).mul(100).div(S.M_USD_ETH);
+      marginTokenOutAmount = assetAmount.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS).mulDiv(S.M_ETHx.mul(100), S.M_USD_ETH);
     }
 
     return (S, marginTokenOutAmount);
@@ -119,7 +121,7 @@ library VaultCalculator {
 
     // ΔUSD = ΔETHx * Musd-eth / M_ETHx
     // ΔETHx = ΔUSD * M_ETHx / Musd-eth
-    uint256 marginTokenOutAmount = usdAmount.mul(S.M_ETHx).div(S.M_USD_ETH);
+    uint256 marginTokenOutAmount = usdAmount.mulDiv(S.M_ETHx, S.M_USD_ETH);
     return marginTokenOutAmount;
   }
 
@@ -128,7 +130,7 @@ library VaultCalculator {
 
     // ΔUSD = ΔETHx * Musd-eth / M_ETHx
     // ΔETHx = ΔUSD * M_ETHx / Musd-eth
-    uint256 usdOutAmount = marginTokenAmount.mul(S.M_USD_ETH).div(S.M_ETHx);
+    uint256 usdOutAmount = marginTokenAmount.mulDiv(S.M_USD_ETH, S.M_ETHx);
     return usdOutAmount;
   }
 
@@ -136,7 +138,7 @@ library VaultCalculator {
     Constants.VaultState memory S = getVaultState(self);
 
     // ΔETH = ΔETHx * M_ETH / M_ETHx
-    uint256 assetOutAmount = marginTokenAmount.mul(S.M_ETH).div(S.M_ETHx);
+    uint256 assetOutAmount = marginTokenAmount.mulDiv(S.M_ETH, S.M_ETHx);
     return (S, assetOutAmount);
   }
 
@@ -147,9 +149,10 @@ library VaultCalculator {
     Constants.VaultState memory S = getVaultState(self);
 
     // ΔETH = ΔETHx * (M_ETH * P_ETH - Musd-eth) / (M_ETHx * P_ETH)
-    uint256 assetOutAmount = marginTokenAmount.mul(
-      S.M_ETH.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH)
-    ).div(S.M_ETHx.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS));
+    uint256 assetOutAmount = marginTokenAmount.mulDiv(
+      S.M_ETH.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH),
+      S.M_ETHx.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS)
+    );
     return (S, assetOutAmount);
   }
 
@@ -161,12 +164,12 @@ library VaultCalculator {
 
     if (S.aar < (10 ** S.AARDecimals)) {
       // ΔETH = ΔUSD * M_ETH / Musd-eth
-      uint256 assetOutAmount = usdAmount.mul(S.M_ETH).div(S.M_USD_ETH);
+      uint256 assetOutAmount = usdAmount.mulDiv(S.M_ETH, S.M_USD_ETH);
       return (S, assetOutAmount);
     }
     else {
       // ΔETH = ΔUSD / P_ETH
-      uint256 assetOutAmount = usdAmount.mul(10 ** S.P_ETH_DECIMALS).div(S.P_ETH);
+      uint256 assetOutAmount = usdAmount.mulDiv(10 ** S.P_ETH_DECIMALS, S.P_ETH);
       return (S, assetOutAmount);
     }
   }
@@ -183,15 +186,18 @@ library VaultCalculator {
     
     if (S.aar >= aar101) { // aar >= 101% 
       // ΔETHx = ΔUSD * M_ETHx * (1 + r) / (M_ETH * P_ETH - Musd-eth)
-      Constants.Terms memory T;
-      T.T1 = usdAmount.mul(S.M_ETHx).mul((10 ** settings.decimals()).add(_r(S.AARBelowSafeLineTime, S.RateR)));
-      marginTokenOutAmount = T.T1.div(
-        S.M_ETH.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH)
-      ).div(10 ** settings.decimals());
+      marginTokenOutAmount = usdAmount.mulDiv(
+        S.M_ETHx,
+        S.M_ETH.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH)
+      )
+      .mulDiv(
+        (10 ** settings.decimals()).add(_r(S.AARBelowSafeLineTime, S.RateR)),
+        10 ** settings.decimals()
+      );
     }
     else { //  aar < 101% 
       // ΔETHx = ΔUSD * M_ETHx * 100 / Musd-eth
-      marginTokenOutAmount = usdAmount.mul(S.M_ETHx).mul(100).div(S.M_USD_ETH);
+      marginTokenOutAmount = usdAmount.mulDiv(S.M_ETHx.mul(100), S.M_USD_ETH);
     }
     return (S, marginTokenOutAmount);
   }
@@ -202,7 +208,7 @@ library VaultCalculator {
     if (aarBelowSafeLineTime == 0) {
       return 0;
     }
-    return rateR.mul(block.timestamp.sub(aarBelowSafeLineTime)).div(1 hours);
+    return rateR.mulDiv(block.timestamp.sub(aarBelowSafeLineTime), 1 hours);
   }
 
   function calcDeltaUsdForPtyPoolBuyLow(IVault self, IProtocolSettings settings, address Usd, address ptyPoolBuyLow) public view returns (Constants.VaultState memory, uint256) {
@@ -211,7 +217,7 @@ library VaultCalculator {
     // ΔETH = (Musd-eth * AART - M_ETH * P_ETH) / (P_ETH * (AART - 1))
     // ΔUSD = (Musd-eth * AART - M_ETH * P_ETH) / (AART - 1)
     uint256 deltaUsdAmount = S.M_USD_ETH.mul(S.AART).sub(
-      S.M_ETH.mul(S.P_ETH).mul(10 ** S.AARDecimals).div(10 ** S.P_ETH_DECIMALS)
+      S.M_ETH.mulDiv(S.P_ETH.mul(10 ** S.AARDecimals), 10 ** S.P_ETH_DECIMALS)
     ).div(S.AART.sub(10 ** S.AARDecimals));
 
     uint256 minUsdAmount = self.paramValue("PtyPoolMinUsdAmount");

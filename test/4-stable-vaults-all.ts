@@ -438,4 +438,70 @@ describe("Vaults", () => {
     await printStableVaultState(vf.usdcVault, vf.vaultQuery);
     
   });
+
+  it("All Mints & Redeem work with huge numbers", async () => {
+    await vf.settings.connect(vf.Alice).updateVaultParamValue(await vf.usdcVault.getAddress(), encodeBytes32String("Y"), 0);
+
+    // first mint $zUSD fails
+    await expectFirstMintUsdFails("1000000000000000000000", BigInt(101) * (power(PRICE_DECIMALS)) / (100n));
+
+    // mint $USDCx
+    console.log(`\nPrice: 1.01; mint $USDCx with 1000000000000000000000 (1000 * 10^18) $USDC`);
+    await expectFirstMintUsdcx("1000000000000000000000", BigInt(101) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+    // AAR: uint256.max
+    
+    console.log(`\nPrice: 1.01; mint $zUSD with 1000000000000000000000 (1000 * 10^18) $USDC`);
+    await expectMintUsd('1000000000000000000000', BigInt(101) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.55; AAR (108%) < AARS (110%), mint $zUSD disabled`);
+    await expectMintUsdFailedBelowAARS("1000000000000000000000", BigInt(55) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.55; AAR (108%) < AARS (110%), mint $USDCx`);
+    await expectMintUsdcx("1000000000000000000000", BigInt(55) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.32; AAR (95%) < AARS (110%), mint 200000000000000000000 (200 * 10^18) $USDCx`);
+    await expectMintUsdcxBelow101("200000000000000000000", BigInt(32) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.32; AAR (101%) < AARS (110%), mint 100000000000000000000 / (10^18) $zUSD & $USDCx`);
+    await expectmintPairs("100000000000000000000", BigInt(32) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.32; AAR (101%) > 100n%, redeem by $zUSD`);
+    await expectRedeemByUsd("100000000000000000000", BigInt(32) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.3; AAR (95%) < 100n%, redeem by $zUSD`);
+    await expectRedeemByUsd("100000000000000000000", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.3; AAR (95%) < AARS (110%), redeem by $USDCx fails`);
+    await expectRedeemByUsdcxFailsBelowAARS("100000000000000000000", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+
+    console.log(`\nPrice: 0.36; AAR (114%) > AARS (110%), redeem by $USDCx`);
+    await expectRedeemByUsdcx("100000000000000000000", BigInt(36) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+    expect(await vf.usdcVault.AARBelowSafeLineTime()).to.equal(BigInt(0));
+
+    console.log(`\nPrice: 0.3; AAR (95%) < AARS (110%), redeem by $USDCx with paired $zUSD`);
+    await expectRedeemByUsdcxBelowAARS("200000000000000000000", "100000000000000000000", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+    expect(await vf.usdcVault.AARBelowSafeLineTime()).to.greaterThan(BigInt(0));
+    
+    // fast forward by 10 hours
+    await time.increase(10 * 60 * 60);
+    console.log(`\nPrice: 0.3; AAR (95%) < AARS (110%), 10 hours later, swap $zUSD to $USDCx`);
+    await expectUsdToUsdx("50000000000000000000", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.3; AAR (102%) > AARS (110%), 10 hours later, swap $zUSD to $USDCx`);
+    await time.increase(10 * 60 * 60);
+    await expectUsdToUsdx("100000000000000000000", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+    
+  });
 });

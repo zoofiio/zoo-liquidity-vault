@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 // import "hardhat/console.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./Constants.sol";
 import "../interfaces/IProtocolSettings.sol";
@@ -12,6 +13,7 @@ import "../interfaces/IUsd.sol";
 import "../interfaces/IVault.sol";
 
 library StableVaultCalculator {
+  using Math for uint256;
   using SafeMath for uint256;
 
   // 𝑟 = self.RateR() × 𝑡(h𝑟𝑠), since aar drop below AARS;
@@ -20,7 +22,7 @@ library StableVaultCalculator {
     if (aarBelowSafeLineTime == 0) {
       return 0;
     }
-    return rateR.mul(block.timestamp.sub(aarBelowSafeLineTime)).div(1 hours);
+    return rateR.mulDiv(block.timestamp.sub(aarBelowSafeLineTime), 1 hours);
   }
 
   function AAR(IVault self) public view returns (uint256) {
@@ -32,7 +34,7 @@ library StableVaultCalculator {
       return type(uint256).max;
     }
     (uint256 assetTokenPrice, uint256 assetTokenPriceDecimals) = self.assetTokenPrice();
-    return assetTotalAmount.mul(assetTokenPrice).div(10 ** assetTokenPriceDecimals).mul(10 ** self.AARDecimals()).div(self.usdTotalSupply());
+    return assetTotalAmount.mulDiv(assetTokenPrice, 10 ** assetTokenPriceDecimals).mulDiv(10 ** self.AARDecimals(), self.usdTotalSupply());
   }
 
   function getStableVaultState(IVault self) public view returns (Constants.StableVaultState memory) {
@@ -59,7 +61,7 @@ library StableVaultCalculator {
     require(S.M_USDCx > 0, "Margin token balance is 0");
 
     // ΔUSD = ΔUSDC * P_USDC
-    uint256 usdOutAmount = assetAmount.mul(S.P_USDC).div(10 ** S.P_USDC_DECIMALS);
+    uint256 usdOutAmount = assetAmount.mulDiv(S.P_USDC, 10 ** S.P_USDC_DECIMALS);
     return (S, usdOutAmount);
   }
 
@@ -77,13 +79,14 @@ library StableVaultCalculator {
       uint256 aar101 = (101 * (10 ** (S.AARDecimals - 2)));
       if (S.aar >= aar101) { // aar >= 101% {
         // ΔUSDCx = ΔUSDC * P_USDC * M_USDCx / (M_USDC * P_USDC - M_USD_USDC)
-        marginTokenOutAmount = assetAmount.mul(S.P_USDC).div(10 ** S.P_USDC_DECIMALS).mul(S.M_USDCx).div(
-          S.M_USDC.mul(S.P_USDC).div(10 ** S.P_USDC_DECIMALS).sub(S.M_USD_USDC)
+        marginTokenOutAmount = assetAmount.mulDiv(S.P_USDC, 10 ** S.P_USDC_DECIMALS).mulDiv(
+          S.M_USDCx,
+          S.M_USDC.mulDiv(S.P_USDC, 10 ** S.P_USDC_DECIMALS).sub(S.M_USD_USDC)
         );
       }
       else {
         // ΔUSDCx = ΔUSDC * P_USDC * M_USDCx * 100 / M_USD_USDC
-        marginTokenOutAmount = assetAmount.mul(S.P_USDC).div(10 ** S.P_USDC_DECIMALS).mul(S.M_USDCx).mul(100).div(S.M_USD_USDC);
+        marginTokenOutAmount = assetAmount.mulDiv(S.P_USDC, 10 ** S.P_USDC_DECIMALS).mulDiv(S.M_USDCx.mul(100), S.M_USD_USDC);
       }
     }
 
@@ -99,8 +102,8 @@ library StableVaultCalculator {
 
     // ΔUSD = ΔUSDC * M_USD_USDC / M_USDC
     // ΔUSDCx = ΔUSD * M_USDCx / M_USD_USDC
-    uint256 usdOutAmount = assetAmount.mul(S.M_USD_USDC).div(S.M_USDC);
-    uint256 marginTokenOutAmount = usdOutAmount.mul(S.M_USDCx).div(S.M_USD_USDC);
+    uint256 usdOutAmount = assetAmount.mulDiv(S.M_USD_USDC, S.M_USDC);
+    uint256 marginTokenOutAmount = usdOutAmount.mulDiv(S.M_USDCx, S.M_USD_USDC);
 
     return (S, usdOutAmount, marginTokenOutAmount);
   }
@@ -121,11 +124,11 @@ library StableVaultCalculator {
     uint256 assetOutAmount;
     if (S.aar >= (10 ** S.AARDecimals)) {
       // ΔUSDC = ΔUSD / P_USDC
-      assetOutAmount = usdAmount.mul(10 ** S.P_USDC_DECIMALS).div(S.P_USDC);
+      assetOutAmount = usdAmount.mulDiv(10 ** S.P_USDC_DECIMALS, S.P_USDC);
     }
     else {
       // ΔUSDC = ΔUSD * M_USDC / M_USD_USDC
-      assetOutAmount = usdAmount.mul(S.M_USDC).div(S.M_USD_USDC);
+      assetOutAmount = usdAmount.mulDiv(S.M_USDC, S.M_USD_USDC);
     }
 
     (uint256 netRedeemAmount, uint256 feesToTreasury) = calcRedeemFeesFromStableVault(self, settings, assetOutAmount);
@@ -138,8 +141,11 @@ library StableVaultCalculator {
     Constants.StableVaultState memory S = getStableVaultState(self);
 
     // ΔUSDC = M_USDC * ΔUSDCx / M_USDCx - M_USD_USDC * ΔUSDCx / (M_USDCx * P_USDC)
-    uint256 a = S.M_USDC.mul(marginTokenAmount).div(S.M_USDCx);
-    uint256 b = S.M_USD_USDC.mul(marginTokenAmount).div(S.M_USDCx.mul(S.P_USDC).div(10 ** S.P_USDC_DECIMALS));
+    uint256 a = S.M_USDC.mulDiv(marginTokenAmount, S.M_USDCx);
+    uint256 b = S.M_USD_USDC.mulDiv(
+      marginTokenAmount,
+      S.M_USDCx.mulDiv(S.P_USDC, 10 ** S.P_USDC_DECIMALS)
+    );
     uint256 assetOutAmount = a > b ? a - b : 0;
 
     (uint256 netRedeemAmount, uint256 feesToTreasury) = calcRedeemFeesFromStableVault(self, settings, assetOutAmount);
@@ -153,7 +159,7 @@ library StableVaultCalculator {
 
     // ΔUSD = ΔUSDCx * M_USD_USDC / M_USDCx
     // ΔUSDCx = ΔUSD * M_USDCx / M_USD_USDC
-    uint256 marginTokenOutAmount = usdAmount.mul(S.M_USDCx).div(S.M_USD_USDC);
+    uint256 marginTokenOutAmount = usdAmount.mulDiv(S.M_USDCx, S.M_USD_USDC);
     return marginTokenOutAmount;
   }
 
@@ -164,7 +170,7 @@ library StableVaultCalculator {
 
     // ΔUSDCx = ΔUSD * M_USDCx / M_USD_USDC
     // ΔUSD = ΔUSDCx * M_USD_USDC / M_USDCx
-    uint256 usdOutAmount = marginTokenAmount.mul(S.M_USD_USDC).div(S.M_USDCx);
+    uint256 usdOutAmount = marginTokenAmount.mulDiv(S.M_USD_USDC, S.M_USDCx);
     return usdOutAmount;
   }
 
@@ -172,7 +178,7 @@ library StableVaultCalculator {
     Constants.StableVaultState memory S = getStableVaultState(self);
 
     // ΔUSDC = ΔUSDCx * M_USDC / M_USDCx
-    uint256 assetOutAmount = marginTokenAmount.mul(S.M_USDC).div(S.M_USDCx);
+    uint256 assetOutAmount = marginTokenAmount.mulDiv(S.M_USDC, S.M_USDCx);
     (uint256 netRedeemAmount, uint256 feesToTreasury) = calcRedeemFeesFromStableVault(self, settings, assetOutAmount);
     return (S, assetOutAmount, netRedeemAmount, feesToTreasury);
   }
@@ -186,15 +192,18 @@ library StableVaultCalculator {
     
     if (S.aar >= aar101) { // aar >= 101% 
       // ΔUSDCx = ΔUSD * M_USDCx * (1 + r) / (M_USDC * P_USDC - M_USD-USDC)
-      Constants.Terms memory T;
-      T.T1 = usdAmount.mul(S.M_USDCx).mul((10 ** settings.decimals()).add(_r(S.AARBelowSafeLineTime, S.RateR)));
-      marginTokenOutAmount = T.T1.div(
-        S.M_USDC.mul(S.P_USDC).div(10 ** S.P_USDC_DECIMALS).sub(S.M_USD_USDC)
-      ).div(10 ** settings.decimals());
+      marginTokenOutAmount = usdAmount.mulDiv(
+        S.M_USDCx,
+        S.M_USDC.mulDiv(S.P_USDC, 10 ** S.P_USDC_DECIMALS).sub(S.M_USD_USDC)
+      )
+      .mulDiv(
+        (10 ** settings.decimals()).add(_r(S.AARBelowSafeLineTime, S.RateR)),
+        10 ** settings.decimals()
+      );
     }
     else { //  aar < 101% 
       // ΔUSDCx = ΔUSD * M_USDCx * 100 / M_USD-USDC
-      marginTokenOutAmount = usdAmount.mul(S.M_USDCx).mul(100).div(S.M_USD_USDC);
+      marginTokenOutAmount = usdAmount.mulDiv(S.M_USDCx.mul(100), S.M_USD_USDC);
     }
     return (S, marginTokenOutAmount);
   }

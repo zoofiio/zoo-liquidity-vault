@@ -15,10 +15,11 @@ contract MockERC20 is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
 
   constructor(
     string memory name,
-    string memory symbol
+    string memory symbol,
+    uint8 _decimals_
   ) Ownable() ERC20(name, symbol) {
     _setAdmin(_msgSender(), true);
-    _decimals = 18;
+    _decimals = _decimals_;
   }
 
   /* ================= VIEWS ================ */

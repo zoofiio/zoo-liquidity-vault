@@ -58,10 +58,10 @@ export async function deployBaseContractsFixture() {
   const [Alice, Bob, Caro, Dave, Ivy] = await ethers.getSigners();
 
   const MockERC20Factory = await ethers.getContractFactory("MockERC20");
-  const MockERC20 = await MockERC20Factory.deploy("ERC20 Mock", "MockERC20");
+  const MockERC20 = await MockERC20Factory.deploy("ERC20 Mock", "MockERC20", 18);
   const erc20 = MockERC20__factory.connect(await MockERC20.getAddress(), provider);
 
-  const WBTC = await MockERC20Factory.deploy("WBTC Token", "WBTC");
+  const WBTC = await MockERC20Factory.deploy("WBTC Token", "WBTC", 18);
   const wbtc = MockERC20__factory.connect(await WBTC.getAddress(), provider);
 
   const MockRebasableERC20Factory = await ethers.getContractFactory("MockRebasableERC20");
@@ -392,6 +392,7 @@ export async function printVaultState(vault: Vault, vaultQuery: VaultQuery) {
 
   const assetTokenERC20 = ERC20__factory.connect(await vault.assetToken(), provider);
   const assetSymbol = (await vault.assetToken() == nativeTokenAddress) ? 'ETH' : await assetTokenERC20.symbol();
+  const assetDecimals = (await vault.assetToken() == nativeTokenAddress) ? 18 : await assetTokenERC20.decimals();
   const Usd = Usd__factory.connect(await protocol.usdToken(), provider);
   const ethxToken = Usd__factory.connect(await vault.marginToken(), provider);
   const priceFeed = MockPriceFeed__factory.connect(await vault.priceFeed(), provider);
@@ -402,10 +403,10 @@ export async function printVaultState(vault: Vault, vaultQuery: VaultQuery) {
 
   console.log(`$${assetSymbol} Pool:`);
   console.log(`  P_${assetSymbol}: ${ethers.formatUnits(await priceFeed.latestPrice(), await priceFeed.decimals())}`);
-  console.log(`  M_${assetSymbol}: ${ethers.formatUnits(await vault.assetBalance(), 18)}`);
-  console.log(`  M_USD: ${ethers.formatUnits(await Usd.totalSupply(), 18)}`);
-  console.log(`  M_USD_${assetSymbol}: ${ethers.formatUnits(await vault.usdTotalSupply(), 18)}`);
-  console.log(`  M_${assetSymbol}x: ${ethers.formatUnits(await ethxToken.totalSupply(), 18)}`);
+  console.log(`  M_${assetSymbol}: ${ethers.formatUnits(await vault.assetBalance(), assetDecimals)}`);
+  console.log(`  M_USD: ${ethers.formatUnits(await Usd.totalSupply(), await Usd.decimals())}`);
+  console.log(`  M_USD_${assetSymbol}: ${ethers.formatUnits(await vault.usdTotalSupply(), await Usd.decimals())}`);
+  console.log(`  M_${assetSymbol}x: ${ethers.formatUnits(await ethxToken.totalSupply(), await ethxToken.decimals())}`);
   console.log(`  AAR: ${AAR}`);
   console.log(`  APY: ${ethers.formatUnits(await vault.paramValue(ethers.encodeBytes32String('Y')), await settings.decimals())}`);
   console.log(`  Mode: ${VaultMode[mode]}`);
@@ -417,6 +418,7 @@ export async function printStableVaultState(vault: StableVault, vaultQuery: Vaul
 
   const assetTokenERC20 = ERC20__factory.connect(await vault.assetToken(), provider);
   const assetSymbol = (await vault.assetToken() == nativeTokenAddress) ? 'ETH' : await assetTokenERC20.symbol();
+  const assetDecimals = (await vault.assetToken() == nativeTokenAddress) ? 18 : await assetTokenERC20.decimals();
   const Usd = Usd__factory.connect(await protocol.usdToken(), provider);
   const usdcxToken = Usd__factory.connect(await vault.marginToken(), provider);
   const priceFeed = MockPriceFeed__factory.connect(await vault.priceFeed(), provider);
@@ -427,10 +429,10 @@ export async function printStableVaultState(vault: StableVault, vaultQuery: Vaul
 
   console.log(`$${assetSymbol} Pool:`);
   console.log(`  P_${assetSymbol}: ${ethers.formatUnits(await priceFeed.latestPrice(), await priceFeed.decimals())}`);
-  console.log(`  M_${assetSymbol}: ${ethers.formatUnits(await vault.assetBalance(), 18)}`);
-  console.log(`  M_USD: ${ethers.formatUnits(await Usd.totalSupply(), 18)}`);
-  console.log(`  M_USD_${assetSymbol}: ${ethers.formatUnits(await vault.usdTotalSupply(), 18)}`);
-  console.log(`  M_${assetSymbol}x: ${ethers.formatUnits(await usdcxToken.totalSupply(), 18)}`);
+  console.log(`  M_${assetSymbol}: ${ethers.formatUnits(await vault.assetBalance(), assetDecimals)}`);
+  console.log(`  M_USD: ${ethers.formatUnits(await Usd.totalSupply(), await Usd.decimals())}`);
+  console.log(`  M_USD_${assetSymbol}: ${ethers.formatUnits(await vault.usdTotalSupply(), await Usd.decimals())}`);
+  console.log(`  M_${assetSymbol}x: ${ethers.formatUnits(await usdcxToken.totalSupply(), await usdcxToken.decimals())}`);
   console.log(`  AAR: ${AAR}`);
   console.log(`  APY: ${ethers.formatUnits(await vault.paramValue(ethers.encodeBytes32String('Y')), await settings.decimals())}`);
   // console.log(`  Mode: ${VaultMode[mode]}`);

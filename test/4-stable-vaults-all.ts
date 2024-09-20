@@ -25,8 +25,12 @@ describe("Vaults", () => {
     return [netAssetAmount, feeToTreasury];
   }
 
-  const expectCalcFirstMintUsdcx = (deltaUsdcValue: string, S: DumpSVS) => {
-    const deltaUsdc = parseUnits(deltaUsdcValue, 18);
+  const expectCalcFirstMintUsdcx = async (deltaUsdcValue: string, S: DumpSVS) => {
+    let deltaUsdc = parseUnits(deltaUsdcValue, await vf.usdc.decimals());
+
+    const decimalsOffset = 18n - (await vf.usdc.decimals());
+    deltaUsdc = deltaUsdc * (power(decimalsOffset));
+
     const deltaUsdcx = deltaUsdc
     return deltaUsdcx;
   };
@@ -38,7 +42,7 @@ describe("Vaults", () => {
     const S = await dumpStableVaultState(usdcVault, vaultQuery);
     // expect(S.mode).to.equal(VaultMode.Empty);
 
-    let usdcDepositAmount = ethers.parseUnits(assetAmount, 18);
+    let usdcDepositAmount = ethers.parseUnits(assetAmount, await vf.usdc.decimals());
     await expect(vaultQuery.connect(Alice).calcMintUsdFromStableVault(await usdcVault.getAddress(), usdcDepositAmount)).to.be.revertedWith("Margin token balance is 0");
 
     await vaultQuery.calcMintMarginTokensFromStableVault(await usdcVault.getAddress(), usdcDepositAmount);
@@ -54,8 +58,8 @@ describe("Vaults", () => {
     await mockPrice(usdcVault, price);
     const S = await dumpStableVaultState(usdcVault, vaultQuery);
 
-    let usdcDepositAmount = ethers.parseUnits(assetAmount, 18);
-    const expectedUsdcxAmount = expectCalcFirstMintUsdcx(assetAmount, S);
+    let usdcDepositAmount = ethers.parseUnits(assetAmount, await vf.usdc.decimals());
+    const expectedUsdcxAmount = await expectCalcFirstMintUsdcx(assetAmount, S);
     const calcUsdcxOut = await vaultQuery.calcMintMarginTokensFromStableVault(await usdcVault.getAddress(), usdcDepositAmount);
     expectBigNumberEquals(expectedUsdcxAmount, calcUsdcxOut[1]);
 
@@ -71,19 +75,29 @@ describe("Vaults", () => {
       .withArgs(Alice.address, usdcDepositAmount, calcUsdcxOut[1], S.P_USDC, PRICE_DECIMALS);
   };
 
-  const expectCalcMintUsd = (deltaUsdc: bigint, S: DumpSVS) => {
+  const expectCalcMintUsd = async(deltaUsdc: bigint, S: DumpSVS) => {
+    const decimalsOffset = 18n - (await vf.usdc.decimals());
+    deltaUsdc = deltaUsdc * power(decimalsOffset);
+
     const deltaUsd = deltaUsdc * (S.P_USDC) / (power(S.P_USDC_DECIMALS));
     return deltaUsd;
   };
 
-  const expectCalcMintUSDCx = (deltaUsdc: bigint, S: DumpSVS) => {
+  const expectCalcMintUSDCx = async(deltaUsdc: bigint, S: DumpSVS) => {
+    const decimalsOffset = 18n - (await vf.usdc.decimals());
+    deltaUsdc = deltaUsdc * power(decimalsOffset);
+    const M_USDC = S.M_USDC * power(decimalsOffset);
+
     const deltaUsdcx = deltaUsdc * (S.P_USDC) / (power(S.P_USDC_DECIMALS)) * (S.M_USDCx) / (
-      S.M_USDC * (S.P_USDC) / (power(S.P_USDC_DECIMALS)) - (S.M_USD_USDC)
+      M_USDC * (S.P_USDC) / (power(S.P_USDC_DECIMALS)) - (S.M_USD_USDC)
     );
     return deltaUsdcx;
   };
 
-  const expectCalcMintUSDCxBelow101 = (deltaUsdc: bigint, S: DumpSVS) => {
+  const expectCalcMintUSDCxBelow101 = async(deltaUsdc: bigint, S: DumpSVS) => {
+    const decimalsOffset = 18n - (await vf.usdc.decimals());
+    deltaUsdc = deltaUsdc * power(decimalsOffset);
+
     const deltaUsdcx = deltaUsdc * (S.P_USDC) / (power(S.P_USDC_DECIMALS)) * (S.M_USDCx) * (100n) / (S.M_USD_USDC);
     return deltaUsdcx;
   };
@@ -97,28 +111,37 @@ describe("Vaults", () => {
     return [deltaUsd, deltaUsdcx];
   };
 
-  const expectCalcRedeemByUsd = (deltaUsd: bigint, S: DumpSVS) => {
+  const expectCalcRedeemByUsd = async (deltaUsd: bigint, S: DumpSVS) => {
     let assetAmount = BigInt(0);
     if (S.AAR < power(S.AARDecimals)) {
       assetAmount = deltaUsd * (S.M_USDC) / (S.M_USD_USDC);
     }
     else {
       assetAmount = deltaUsd * (power(S.P_USDC_DECIMALS)) / (S.P_USDC);
+
+      const decimalsOffset = 18n - (await vf.usdc.decimals());
+      assetAmount = assetAmount / power(decimalsOffset);
     }
     return expectCalcFees(assetAmount, S);
   };
 
-  const expectCalcRedeemByUsdcx = (deltaUsdcx: bigint, S: DumpSVS) => {
+  const expectCalcRedeemByUsdcx = async(deltaUsdcx: bigint, S: DumpSVS) => {
     let assetAmount = BigInt(0);
+
+    const decimalsOffset = 18n - (await vf.usdc.decimals());
+    const M_USDC = S.M_USDC * power(decimalsOffset);
+
     if (S.AAR >= (S.AARS)) {
-      assetAmount = deltaUsdcx * (S.M_USDC) / (S.M_USDCx) - (
+      assetAmount = deltaUsdcx * (M_USDC) / (S.M_USDCx) - (
         deltaUsdcx * (S.M_USD_USDC) / (S.M_USDCx * (S.P_USDC) / (power(S.P_USDC_DECIMALS)))
       );
     }
     else {
       // Paired with $zUSD
-      assetAmount = deltaUsdcx * (S.M_USDC) / (S.M_USDCx);
+      assetAmount = deltaUsdcx * (M_USDC) / (S.M_USDCx);
     }
+    assetAmount = assetAmount / power(decimalsOffset);
+
     return expectCalcFees(assetAmount, S);
   };
 
@@ -135,6 +158,10 @@ describe("Vaults", () => {
   const expectCalcUsdToUsdxAmount = async (deltaUsd: bigint, S: DumpSVS) => {
     const aar101 = power(S.AARDecimals) * (101n) / (100n);
     let deltaUsdcx = BigInt(0);
+
+    const decimalsOffset = 18n - (await vf.usdc.decimals());
+    const M_USDC = S.M_USDC * power(decimalsOffset);
+
     if (S.AAR < (aar101)) {
       deltaUsdcx = deltaUsd * (S.M_USDCx) * (100n) / (S.M_USD_USDC);
     }
@@ -145,7 +172,7 @@ describe("Vaults", () => {
       deltaUsdcx = deltaUsd * (S.M_USDCx) * (
         power(S.AARDecimals) + (r)
       ) / (power(S.AARDecimals)) / (
-        S.M_USDC * (S.P_USDC) / (power(S.P_USDC_DECIMALS)) - (S.M_USD_USDC)
+        M_USDC * (S.P_USDC) / (power(S.P_USDC_DECIMALS)) - (S.M_USD_USDC)
       );
     }
 
@@ -156,8 +183,8 @@ describe("Vaults", () => {
     const { vaultQuery, usdcVault, Alice, usdc, usd } = vf;
     await mockPrice(usdcVault, price);
     const S = await dumpStableVaultState(usdcVault, vaultQuery);
-    let usdcDepositAmount = ethers.parseUnits(assetAmount, 18);
-    const expectedUsdAmount = expectCalcMintUsd(usdcDepositAmount, S);
+    let usdcDepositAmount = ethers.parseUnits(assetAmount, await vf.usdc.decimals());
+    const expectedUsdAmount = await expectCalcMintUsd(usdcDepositAmount, S);
     const calcUsdOut = await vaultQuery.calcMintUsdFromStableVault(await usdcVault.getAddress(), usdcDepositAmount);
     expectBigNumberEquals(expectedUsdAmount, calcUsdOut[1]);
 
@@ -177,7 +204,7 @@ describe("Vaults", () => {
     await mockPrice(usdcVault, price);
     const S = await dumpStableVaultState(usdcVault, vaultQuery);
 
-    let usdcDepositAmount = ethers.parseUnits(assetAmount, 18);
+    let usdcDepositAmount = ethers.parseUnits(assetAmount, await vf.usdc.decimals());
     // await expect(vaultQuery.connect(Alice).calcMintUsdFromStableVault(await usdcVault.getAddress(), usdcDepositAmount)).to.be.revertedWith("AAR Below AARS");
 
     await usdc.connect(Alice).mint(Alice.address, usdcDepositAmount);
@@ -190,8 +217,8 @@ describe("Vaults", () => {
     await mockPrice(usdcVault, price);
     const S = await dumpStableVaultState(usdcVault, vaultQuery);
 
-    let usdcDepositAmount = ethers.parseUnits(assetAmount, 18);
-    const expectedUsdcxAmount = expectCalcMintUSDCx(usdcDepositAmount, S);
+    let usdcDepositAmount = ethers.parseUnits(assetAmount, await vf.usdc.decimals());
+    const expectedUsdcxAmount = await expectCalcMintUSDCx(usdcDepositAmount, S);
     const calcUsdcxOut = await vaultQuery.calcMintMarginTokensFromStableVault(await usdcVault.getAddress(), usdcDepositAmount);
     expectBigNumberEquals(expectedUsdcxAmount, calcUsdcxOut[1]);
 
@@ -211,8 +238,8 @@ describe("Vaults", () => {
     await mockPrice(usdcVault, price);
     const S = await dumpStableVaultState(usdcVault, vaultQuery);
 
-    let usdcDepositAmount = ethers.parseUnits(assetAmount, 18);
-    const expectedUsdcxAmount = expectCalcMintUSDCxBelow101(usdcDepositAmount, S);
+    let usdcDepositAmount = ethers.parseUnits(assetAmount, await vf.usdc.decimals());
+    const expectedUsdcxAmount = await expectCalcMintUSDCxBelow101(usdcDepositAmount, S);
     const calcUsdcxOut = await vaultQuery.calcMintMarginTokensFromStableVault(await usdcVault.getAddress(), usdcDepositAmount);
     expectBigNumberEquals(expectedUsdcxAmount, calcUsdcxOut[1]);
 
@@ -232,7 +259,7 @@ describe("Vaults", () => {
     await mockPrice(usdcVault, price);
     const S = await dumpStableVaultState(usdcVault, vaultQuery);
 
-    let usdcDepositAmount = ethers.parseUnits(assetAmount, 18);
+    let usdcDepositAmount = ethers.parseUnits(assetAmount, await vf.usdc.decimals());
     const expectedMintOut = expectCalcmintPairs(usdcDepositAmount, S);
     const calcMintOut = await vaultQuery.calcMintPairsFromStableVault(await usdcVault.getAddress(), usdcDepositAmount);
     expectBigNumberEquals(expectedMintOut[0], calcMintOut[1]);
@@ -260,7 +287,7 @@ describe("Vaults", () => {
     const deltaUsd = parseUnits(usdAmount, await usd.decimals());
     const [, assetOut, netAssetout, fees] = await vaultQuery.calcRedeemByUsdFromStableVault(await usdcVault.getAddress(), await settings.getAddress(), deltaUsd);
 
-    const expectAssetOut = expectCalcRedeemByUsd(deltaUsd, S);
+    const expectAssetOut = await expectCalcRedeemByUsd(deltaUsd, S);
     expectBigNumberEquals(netAssetout, expectAssetOut[0]);
     expectBigNumberEquals(fees, expectAssetOut[1]);
 
@@ -275,12 +302,12 @@ describe("Vaults", () => {
   };
 
   const expectRedeemByUsdcxFailsBelowAARS = async (deltaUsdcxAmount: string, price: bigint) => {
-    const { settings, vaultQuery, usdcVault, Alice, usdc } = vf;
+    const { settings, vaultQuery, usdcVault, Alice, usdcx } = vf;
     await mockPrice(usdcVault, price);
     const S = await dumpStableVaultState(usdcVault, vaultQuery);
     expect(S.AAR).to.be.lt(S.AARS);
 
-    const deltaUsdcx = parseUnits(deltaUsdcxAmount, await usdc.decimals());
+    const deltaUsdcx = parseUnits(deltaUsdcxAmount, await usdcx.decimals());
     // await expect(vaultQuery.connect(Alice).calcRedeemByMarginTokensFromStableVault(await usdcVault.getAddress(), await settings.getAddress(), deltaUsdcx)).to.be.revertedWith("AAR Below AARS");
 
     await expect(usdcVault.connect(Alice).redeemByMarginTokens(deltaUsdcx)).to.be.revertedWith("AAR Below AARS");
@@ -292,10 +319,10 @@ describe("Vaults", () => {
     const S = await dumpStableVaultState(usdcVault, vaultQuery);
     expect(S.AAR).to.be.gte(S.AARS);
 
-    const deltaUsdcx = parseUnits(deltaUsdcxAmount, await usdc.decimals());
+    const deltaUsdcx = parseUnits(deltaUsdcxAmount, await usdcx.decimals());
     const [, , netAssetout, fees] = await vaultQuery.calcRedeemByMarginTokensFromStableVault(await usdcVault.getAddress(), await settings.getAddress(), deltaUsdcx);
 
-    const expectAssetOut = expectCalcRedeemByUsdcx(deltaUsdcx, S);
+    const expectAssetOut = await expectCalcRedeemByUsdcx(deltaUsdcx, S);
     expectBigNumberEquals(netAssetout, expectAssetOut[0]);
     expectBigNumberEquals(fees, expectAssetOut[1]);
 
@@ -314,13 +341,13 @@ describe("Vaults", () => {
     let S = await dumpStableVaultState(usdcVault, vaultQuery);
     expect(S.AAR).to.be.lt(S.AARS);
 
-    const deltaUsdcx = parseUnits(deltaUsdcxAmount, await usdc.decimals());
+    const deltaUsdcx = parseUnits(deltaUsdcxAmount, await usdcx.decimals());
     const expectedPairedUsd = expectcalcPairedUsdAmount(deltaUsdcx, S);
     const pairedUsd = await vaultQuery.calcPairedUsdAmountForStableVault(await usdcVault.getAddress(), deltaUsdcx);
     expectBigNumberEquals(expectedPairedUsd, pairedUsd);
     
     let [, , netAssetout, fees] = await vaultQuery.calcRedeemByPairsAssetAmountForStableVault(await usdcVault.getAddress(), await settings.getAddress(), deltaUsdcx);
-    let expectAssetOut = expectCalcRedeemByUsdcx(deltaUsdcx, S);
+    let expectAssetOut = await expectCalcRedeemByUsdcx(deltaUsdcx, S);
     expectBigNumberEquals(netAssetout, expectAssetOut[0]);
     expectBigNumberEquals(fees, expectAssetOut[1]);
 
@@ -340,7 +367,7 @@ describe("Vaults", () => {
     const pairedUsdcx = await vaultQuery.calcPairdMarginTokenAmountForStableVault(await usdcVault.getAddress(), deltaUsd);
     expectBigNumberEquals(expectedPairedUsdcx, pairedUsdcx);
     [, , netAssetout, fees] = await vaultQuery.calcRedeemByPairsAssetAmountForStableVault(await usdcVault.getAddress(), await settings.getAddress(), pairedUsdcx);
-    expectAssetOut = expectCalcRedeemByUsdcx(pairedUsdcx, S);
+    expectAssetOut = await expectCalcRedeemByUsdcx(pairedUsdcx, S);
     expectBigNumberEquals(netAssetout, expectAssetOut[0]);
     expectBigNumberEquals(fees, expectAssetOut[1]);
     tx = usdcVault.connect(Alice).redeemByPairsWithExpectedUsdAmount(deltaUsd);
@@ -501,6 +528,75 @@ describe("Vaults", () => {
     console.log(`\nPrice: 0.3; AAR (102%) > AARS (110%), 10 hours later, swap $zUSD to $USDCx`);
     await time.increase(10 * 60 * 60);
     await expectUsdToUsdx("100000000000000000000", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+    
+  });
+
+  it("All Mints & Redeem with ERC20 assets with decimals other than 18 work", async () => {
+    // Update $USDC decimals to 8
+    await expect(vf.usdc.connect(vf.Alice).setDecimals(8)).not.to.be.reverted;
+    
+    await vf.settings.connect(vf.Alice).updateVaultParamValue(await vf.usdcVault.getAddress(), encodeBytes32String("Y"), 0);
+
+    // first mint $zUSD fails
+    await expectFirstMintUsdFails("1000", BigInt(101) * (power(PRICE_DECIMALS)) / (100n));
+
+    // mint $USDCx
+    console.log(`\nPrice: 1.01; mint $USDCx with 1000 $USDC`);
+    await expectFirstMintUsdcx("1000", BigInt(101) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+    // AAR: uint256.max
+    
+    console.log(`\nPrice: 1.01; mint $zUSD with 1000 $USDC`);
+    await expectMintUsd('1000', BigInt(101) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.55; AAR (108%) < AARS (110%), mint $zUSD disabled`);
+    await expectMintUsdFailedBelowAARS("1000", BigInt(55) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.55; AAR (108%) < AARS (110%), mint $USDCx`);
+    await expectMintUsdcx("1000", BigInt(55) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.32; AAR (95%) < AARS (110%), mint $USDCx`);
+    await expectMintUsdcxBelow101("200", BigInt(32) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.32; AAR (101%) < AARS (110%), mint $zUSD & $USDCx`);
+    await expectmintPairs("100", BigInt(32) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.32; AAR (101%) > 100n%, redeem by $zUSD`);
+    await expectRedeemByUsd("100", BigInt(32) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.3; AAR (95%) < 100n%, redeem by $zUSD`);
+    await expectRedeemByUsd("100", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.3; AAR (95%) < AARS (110%), redeem by $USDCx fails`);
+    await expectRedeemByUsdcxFailsBelowAARS("100", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+
+    console.log(`\nPrice: 0.36; AAR (114%) > AARS (110%), redeem by $USDCx`);
+    await expectRedeemByUsdcx("100", BigInt(36) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+    expect(await vf.usdcVault.AARBelowSafeLineTime()).to.equal(BigInt(0));
+
+    console.log(`\nPrice: 0.3; AAR (95%) < AARS (110%), redeem by $USDCx with paired $zUSD`);
+    await expectRedeemByUsdcxBelowAARS("200", "100", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+    expect(await vf.usdcVault.AARBelowSafeLineTime()).to.greaterThan(BigInt(0));
+    
+    // fast forward by 10 hours
+    await time.increase(10 * 60 * 60);
+    console.log(`\nPrice: 0.3; AAR (95%) < AARS (110%), 10 hours later, swap $zUSD to $USDCx`);
+    await expectUsdToUsdx("50", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
+    await printStableVaultState(vf.usdcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 0.3; AAR (102%) > AARS (110%), 10 hours later, swap $zUSD to $USDCx`);
+    await time.increase(10 * 60 * 60);
+    await expectUsdToUsdx("100", BigInt(30) * (power(PRICE_DECIMALS)) / (100n));
     await printStableVaultState(vf.usdcVault, vf.vaultQuery);
     
   });

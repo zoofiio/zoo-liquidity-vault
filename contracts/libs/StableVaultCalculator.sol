@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 // import "hardhat/console.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./Constants.sol";
@@ -15,6 +16,24 @@ import "../interfaces/IVault.sol";
 library StableVaultCalculator {
   using Math for uint256;
   using SafeMath for uint256;
+
+  function vaultAssetTokenDecimals(IVault self) public view returns (uint8) {
+    address assetToken = self.assetToken();
+    if (assetToken == Constants.NATIVE_TOKEN) {
+      return 18;
+    }
+    return IERC20Metadata(assetToken).decimals();
+  }
+
+  function normalizeAssetAmount(IVault self, uint256 amount) public view returns (uint256) {
+    uint256 decimalsOffset = 18 - vaultAssetTokenDecimals(self);
+    return amount.mul(10 ** decimalsOffset);
+  }
+
+  function denormalizeAssetAmount(IVault self, uint256 amount) public view returns (uint256) {
+    uint256 decimalsOffset = 18 - vaultAssetTokenDecimals(self);
+    return amount.div(10 ** decimalsOffset);
+  }
 
   // 𝑟 = self.RateR() × 𝑡(h𝑟𝑠), since aar drop below AARS;
   // r = 0 since aar above AARS;
@@ -34,6 +53,8 @@ library StableVaultCalculator {
       return type(uint256).max;
     }
     (uint256 assetTokenPrice, uint256 assetTokenPriceDecimals) = self.assetTokenPrice();
+
+    assetTotalAmount = normalizeAssetAmount(self, assetTotalAmount);
     return assetTotalAmount.mulDiv(assetTokenPrice, 10 ** assetTokenPriceDecimals).mulDiv(10 ** self.AARDecimals(), self.usdTotalSupply());
   }
 
@@ -61,6 +82,7 @@ library StableVaultCalculator {
     require(S.M_USDCx > 0, "Margin token balance is 0");
 
     // ΔUSD = ΔUSDC * P_USDC
+    assetAmount = normalizeAssetAmount(self, assetAmount);
     uint256 usdOutAmount = assetAmount.mulDiv(S.P_USDC, 10 ** S.P_USDC_DECIMALS);
     return (S, usdOutAmount);
   }
@@ -69,6 +91,9 @@ library StableVaultCalculator {
     require(assetAmount > 0, "Amount must be greater than 0");
 
     Constants.StableVaultState memory S = getStableVaultState(self);
+
+    assetAmount = normalizeAssetAmount(self, assetAmount);
+    S.M_USDC = normalizeAssetAmount(self, S.M_USDC);
 
     uint256 marginTokenOutAmount;
     if (S.M_USDCx == 0) {
@@ -102,6 +127,9 @@ library StableVaultCalculator {
 
     // ΔUSD = ΔUSDC * M_USD_USDC / M_USDC
     // ΔUSDCx = ΔUSD * M_USDCx / M_USD_USDC
+    assetAmount = normalizeAssetAmount(self, assetAmount);
+    S.M_USDC = normalizeAssetAmount(self, S.M_USDC);
+
     uint256 usdOutAmount = assetAmount.mulDiv(S.M_USD_USDC, S.M_USDC);
     uint256 marginTokenOutAmount = usdOutAmount.mulDiv(S.M_USDCx, S.M_USD_USDC);
 
@@ -125,6 +153,7 @@ library StableVaultCalculator {
     if (S.aar >= (10 ** S.AARDecimals)) {
       // ΔUSDC = ΔUSD / P_USDC
       assetOutAmount = usdAmount.mulDiv(10 ** S.P_USDC_DECIMALS, S.P_USDC);
+      assetOutAmount = denormalizeAssetAmount(self, assetOutAmount);
     }
     else {
       // ΔUSDC = ΔUSD * M_USDC / M_USD_USDC
@@ -146,6 +175,7 @@ library StableVaultCalculator {
       marginTokenAmount,
       S.M_USDCx.mulDiv(S.P_USDC, 10 ** S.P_USDC_DECIMALS)
     );
+    b = denormalizeAssetAmount(self, b);
     uint256 assetOutAmount = a > b ? a - b : 0;
 
     (uint256 netRedeemAmount, uint256 feesToTreasury) = calcRedeemFeesFromStableVault(self, settings, assetOutAmount);
@@ -189,6 +219,8 @@ library StableVaultCalculator {
 
     uint256 aar101 = (101 * (10 ** (S.AARDecimals - 2)));
     uint256 marginTokenOutAmount;
+
+    S.M_USDC = normalizeAssetAmount(self, S.M_USDC);
     
     if (S.aar >= aar101) { // aar >= 101% 
       // ΔUSDCx = ΔUSD * M_USDCx * (1 + r) / (M_USDC * P_USDC - M_USD-USDC)

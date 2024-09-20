@@ -108,7 +108,9 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
 
   // $ETHx
   function earnedMatchingYields(address account) public view returns (uint256) {
-    return _userStakingShares[account].mul(_matchingYieldsPerShare.sub(_userMatchingYieldsPerSharePaid[account])).div(1e18).add(_userMatchingYields[account]);
+    return _userStakingShares[account].mulDiv(
+      _matchingYieldsPerShare.sub(_userMatchingYieldsPerSharePaid[account]), 1e28
+    ).add(_userMatchingYields[account]);
   }
 
   // $zUSD
@@ -119,7 +121,9 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
 
   // $zUSD shares
   function _earnedMatchedTokenShares(address account) internal view returns (uint256) {
-    return _userStakingShares[account].mul(_usdSharesPerStakingShare.sub(_userUsdSharesPerStakingSharePaid[account])).div(1e18).add(_userUsdShares[account]);
+    return _userStakingShares[account].mulDiv(
+      _usdSharesPerStakingShare.sub(_userUsdSharesPerStakingSharePaid[account]), 1e28
+    ).add(_userUsdShares[account]);
   }
 
   function getStakingSharesByBalance(uint256 stakingBalance) external view returns (uint256) {
@@ -256,12 +260,12 @@ contract PtyPoolSellHigh is ProtocolOwner, ReentrancyGuard {
 
     TokensTransfer.transferTokens(_stakingAssetToken, address(this), assetRecipient, assetAmountMatched);
 
-    _usdSharesPerStakingShare = _usdSharesPerStakingShare.add(usdSharesReceived.mul(1e18).div(_totalStakingShares));
+    _usdSharesPerStakingShare = _usdSharesPerStakingShare.add(usdSharesReceived.mulDiv(1e28, _totalStakingShares));
     emit MatchedTokensAdded(usdSharesReceived);
 
     // $ETHx
     if (_accruedMatchingYields > 0) {
-      _matchingYieldsPerShare = _matchingYieldsPerShare.add(_accruedMatchingYields.mul(1e18).div(_totalStakingShares));
+      _matchingYieldsPerShare = _matchingYieldsPerShare.add(_accruedMatchingYields.mulDiv(1e28, _totalStakingShares));
       _accruedMatchingYields = 0;
     }
   }

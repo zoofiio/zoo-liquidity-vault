@@ -114,17 +114,23 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
 
   // $ETHx
   function earnedStakingYields(address account) public view returns (uint256) {
-    return _userStakingShares[account].mul(_stakingYieldsPerShare.sub(_userStakingYieldsPerSharePaid[account])).div(1e18).add(_userStakingYields[account]);
+    return _userStakingShares[account].mulDiv(
+      _stakingYieldsPerShare.sub(_userStakingYieldsPerSharePaid[account]), 1e28
+    ).add(_userStakingYields[account]);
   }
 
   // $ETH
   function earnedMatchingYields(address account) public view returns (uint256) {
-    return _userStakingShares[account].mul(_matchingYieldsPerShare.sub(_userMatchingYieldsPerSharePaid[account])).div(1e18).add(_userMatchingYields[account]);
+    return _userStakingShares[account].mulDiv(
+      _matchingYieldsPerShare.sub(_userMatchingYieldsPerSharePaid[account]), 1e28
+    ).add(_userMatchingYields[account]);
   }
 
   // $ETH
   function earnedMatchedToken(address account) public view returns (uint256) {
-    return _userStakingShares[account].mul(_targetTokensPerShare.sub(_userTargetTokensPerSharePaid[account])).div(1e18).add(_userTargetTokens[account]);
+    return _userStakingShares[account].mulDiv(
+      _targetTokensPerShare.sub(_userTargetTokensPerSharePaid[account]), 1e28
+    ).add(_userTargetTokens[account]);
   }
 
   function getStakingSharesByBalance(uint256 stakingBalance) external view returns (uint256) {
@@ -249,7 +255,7 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
     require(yieldsAmount > 0, "Too small yields amount");
     require(_totalStakingShares > 0, "No user stakes");
 
-    _stakingYieldsPerShare = _stakingYieldsPerShare.add(yieldsAmount.mul(1e18).div(_totalStakingShares));
+    _stakingYieldsPerShare = _stakingYieldsPerShare.add(yieldsAmount.mulDiv(1e28, _totalStakingShares));
     emit StakingYieldsAdded(yieldsAmount);
   }
 
@@ -265,11 +271,13 @@ contract PtyPoolBuyLow is ProtocolOwner, ReentrancyGuard {
   function notifyBuyLowTriggered(uint256 assetAmountAdded) external nonReentrant updateTargetTokens(address(0)) onlyVault {
     // require(_vault.vaultMode() == Constants.VaultMode.AdjustmentBelowAARS, "Vault not in adjustment below AARS mode");
 
-    _targetTokensPerShare = _targetTokensPerShare.add(assetAmountAdded.mul(1e18).div(_totalStakingShares));
+    _targetTokensPerShare = _targetTokensPerShare.add(assetAmountAdded.mulDiv(1e28, _totalStakingShares));
     emit MatchedTokensAdded(assetAmountAdded);
 
+    console.log("notifyBuyLowTriggered: assetAmountAdded: %s, _totalStakingShares: %s, _targetTokensPerShare: %s", assetAmountAdded, _totalStakingShares, _targetTokensPerShare);
+
     if (_accruedMatchingYields > 0) {
-      _matchingYieldsPerShare = _matchingYieldsPerShare.add(_accruedMatchingYields.mul(1e18).div(_totalStakingShares));
+      _matchingYieldsPerShare = _matchingYieldsPerShare.add(_accruedMatchingYields.mulDiv(1e28, _totalStakingShares));
       _accruedMatchingYields = 0;
     }
   }

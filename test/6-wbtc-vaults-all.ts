@@ -34,22 +34,30 @@ describe("Vaults", () => {
 
   const log = false;
   const expectCalcMintPair = async (deltaAsset: string, S: DumpVS) => {
-    const asset = parseUnits(deltaAsset, await vf.wbtc.decimals());
+    let asset = parseUnits(deltaAsset, await vf.wbtc.decimals());
+
+    const decimalsOffset = 18n - (await vf.wbtc.decimals());
+    asset = asset * (power(decimalsOffset));
+    const M_ETH = S.M_ETH * (power(decimalsOffset));
+
     const result: [bigint, bigint] = isEmpty(S)
       ? [
           asset * (S.P_ETH) / (power(S.P_ETH_DECIMALS)) * (power(S.AARDecimals)) / (S.AART),
           asset * (S.AART - (power(S.AARDecimals))) / (S.AART),
         ]
-      : [asset * (S.M_USD_ETH) / (S.M_ETH), asset * (S.M_ETHx) / (S.M_ETH)];
+      : [asset * (S.M_USD_ETH) / (M_ETH), asset * (S.M_ETHx) / (M_ETH)];
     log && console.info("calc:", result);
     return result;
   };
 
   const expectCalcMintUsdAARU = async (deltaAsset: string, S: DumpVS) => {
-    const asset = parseUnits(deltaAsset, await vf.wbtc.decimals());
+    let asset = parseUnits(deltaAsset, await vf.wbtc.decimals());
     //@TODO isEmpty
     // if (isEmpty(S)) return BigInt(0);
     //@TODO (M_ETH * P_ETH - Musd-eth) < 0
+
+    const decimalsOffset = 18n - (await vf.wbtc.decimals());
+    asset = asset * (power(decimalsOffset));
 
     const result = asset * (S.P_ETH) / (power(S.P_ETH_DECIMALS));
     log && console.info("calc:", result);
@@ -57,35 +65,47 @@ describe("Vaults", () => {
   };
 
   const expectCalcMintXtokenAARS = async (deltaAsset: string, S: DumpVS) => {
-    const asset = parseUnits(deltaAsset, await vf.wbtc.decimals());
+    let asset = parseUnits(deltaAsset, await vf.wbtc.decimals());
     let result = BigInt(0);
     //@TODO isEmpty
 
+    const decimalsOffset = 18n - (await vf.wbtc.decimals());
+    asset = asset * (power(decimalsOffset));
+    const M_ETH = S.M_ETH * (power(decimalsOffset));
+
     //@TODO (M_ETH * P_ETH - Musd-eth) < 0
-    if (S.M_ETH * (S.P_ETH) / (power(S.P_ETH_DECIMALS)) <= (S.M_USD_ETH)) result = BigInt(0);
+    if (M_ETH * (S.P_ETH) / (power(S.P_ETH_DECIMALS)) <= (S.M_USD_ETH)) result = BigInt(0);
     else
       result = asset
          * (S.P_ETH)
          / (power(S.P_ETH_DECIMALS))
-         * (S.M_ETHx) / (S.M_ETH * (S.P_ETH) / (power(S.P_ETH_DECIMALS)) - (S.M_USD_ETH));
+         * (S.M_ETHx) / (M_ETH * (S.P_ETH) / (power(S.P_ETH_DECIMALS)) - (S.M_USD_ETH));
 
     log && console.info("calc:", result);
     return result;
   };
+
   const subFee = (amount: bigint, S: DumpVS) => amount - (amount * (S.C) / (power(S.settingDecimals)));
+
   const expectCalcRedeemByPairWithUsd = async (deltaUsd: string, S: DumpVS) => {
     const usdAmount = parseUnits(deltaUsd, await vf.usd.decimals());
     const xAmount = usdAmount * (S.M_ETHx) / (S.M_USD_ETH);
-    const expectAssetOut = xAmount * (S.M_ETH) / (S.M_ETHx);
+    let expectAssetOut = xAmount * (S.M_ETH) / (S.M_ETHx);
     const result = [xAmount, expectAssetOut];
-    log && console.info("calc:", result);
+    log && console.info("expectCalcRedeemByPairWithUsd:", result);
     return result;
   };
 
   const expectCalcRedeemByXtokenAARU = async (deltaX: string, S: DumpVS) => {
     const xAmount = parseUnits(deltaX, await vf.wbtcx.decimals());
-    const assetOut = xAmount
-       * (S.M_ETH * (S.P_ETH) / (power(S.P_ETH_DECIMALS)) - (S.M_USD_ETH)) / (S.M_ETHx * (S.P_ETH) / (power(S.P_ETH_DECIMALS)));
+
+    const decimalsOffset = 18n - (await vf.wbtc.decimals());
+    const M_ETH = S.M_ETH * (power(decimalsOffset));
+
+    let assetOut = xAmount
+       * (M_ETH * (S.P_ETH) / (power(S.P_ETH_DECIMALS)) - (S.M_USD_ETH)) / (S.M_ETHx * (S.P_ETH) / (power(S.P_ETH_DECIMALS)));
+    assetOut = assetOut / (power(decimalsOffset));
+
     const result = assetOut;
     log && console.info("calc:", result);
     return result;
@@ -98,12 +118,18 @@ describe("Vaults", () => {
       result = usdAmount * (S.M_ETH) / (S.M_USD_ETH);
     } else {
       result = usdAmount * (power(S.P_ETH_DECIMALS)) / (S.P_ETH);
+
+      const decimalsOffset = 18n - (await vf.wbtc.decimals());
+      result = result / (power(decimalsOffset));
     }
     log && console.info("calc:", result);
     return result;
   };
 
   const expectCalcUsdToEthxAmount = async (deltaUsd: bigint, S: DumpVS) => {
+    const decimalsOffset = 18n - (await vf.wbtc.decimals());
+    const M_ETH = S.M_ETH * (power(decimalsOffset));
+
     const aar101 = power(S.AARDecimals) * (101n) / (100n);
     let deltaUsdcx = BigInt(0);
     if (S.AAR < (aar101)) {
@@ -116,7 +142,7 @@ describe("Vaults", () => {
       deltaUsdcx = deltaUsd * (S.M_ETHx) * (
         power(S.AARDecimals) + (r)
       ) / (power(S.AARDecimals)) / (
-        S.M_ETH * (S.P_ETH) / (power(S.P_ETH_DECIMALS)) - (S.M_USD_ETH)
+        M_ETH * (S.P_ETH) / (power(S.P_ETH_DECIMALS)) - (S.M_USD_ETH)
       );
     }
 
@@ -211,8 +237,10 @@ describe("Vaults", () => {
   // redeemByPairWithUsd
   const expectRedeemByPairWithUsd = async (usdAmount: string, price: bigint) => {
     const { vaultQuery, wbtcVault, Alice, usd, wbtcx, wbtc } = vf;
+
     await mockPrice(wbtcVault, price);
     const S = await dumpVaultState(wbtcVault, vaultQuery);
+
     const usdInput = parseUnits(usdAmount, await usd.decimals());
     const xInput = await vaultQuery.calcPairdMarginTokenAmount(await wbtcVault.getAddress(), usdInput);
     const [, assetOut] = await vaultQuery.calcPairedRedeemAssetAmount(await wbtcVault.getAddress(), xInput);
@@ -677,7 +705,225 @@ describe("Vaults", () => {
 
   });
 
+  it("Mint with ERC20 assets with decimals other than 18 work", async () => {
+    // Update $WBTC decimals to 8
+    await expect(vf.wbtc.connect(vf.Alice).setDecimals(8)).not.to.be.reverted;
+
+    await vf.settings.connect(vf.Alice).updateVaultParamValue(await vf.wbtcVault.getAddress(), encodeBytes32String("Y"), 0);
+    console.log(`\nPrice: 2300; initial mint pairs with 3 $WBTC`);
+    await expectMintPair("3", BigInt(2300) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 1800; AAR < AARS (130%), mint pairs with 1 $WBTC`);
+    await expectMintPair("1", BigInt(1800) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+    
+    console.log(`\nRebase $WBTC by 1% increase`);
+    await mockRebaseEthVault(1);
+    console.log(`Price: 1800; AAR < AARS (130%), mint $WBTCx with 1 $WBTC`);
+    await expectMintXTokenAARS("1", BigInt(1800) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 1800; AAR within [130%, 150%], mint pairs with 1 $WBTC`);
+    await expectMintPair("1", BigInt(1800) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    console.log(`\nRebase $WBTC by 1% increase`);
+    await mockRebaseEthVault(1);
+    console.log(`Price: 2200; AAR > 150%, mint $WBTCx with 1 $WBTC`);
+    await expectMintXTokenAARS("1", BigInt(2200) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    console.log(`\nRebase $WBTC by 1% increase`);
+    await mockRebaseEthVault(1);
+    console.log(`Price: 2200; AAR > 150%, mint $zUSD with 1 $WBTC`);
+    await expectMintUsdAARU("1", BigInt(2200) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    console.log(`\nRebase $WBTC by 1% increase`);
+    await mockRebaseEthVault(1);
+    console.log(`\nPrice: 1700; AAR < 150%, mint pairs with 1 $WBTC`);
+    await expectMintPair("1", BigInt(1700) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 1100; AAR (95%) < AARS (130%), mint pairs to update vault state to adjustment mode`);
+    await expectMintPair("1", BigInt(1100) * (power(PRICE_DECIMALS)));
+    expect(await vf.wbtcVault.AARBelowSafeLineTime()).to.greaterThan(BigInt(0));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 1100; AAR (95%) < AARS (130%), conditional discount purchase suspended`);
+    // fast forward by 10 minutes
+    await time.increase(10 * 60);
+    await expectUsdToEthxSuspended("50", BigInt(1100) * (power(PRICE_DECIMALS)));
+
+    console.log(`\nPrice: 1100; AAR (95%) < 101%, 30 minutes later, swap $zUSD to $WBTCx`);
+    await time.increase(30 * 10 * 60);
+    await expectUsdToEthx("1000", BigInt(1100) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    console.log(`\nPrice: 1100; AAR (103%) > 101%, swap $zUSD to $WBTCx`);
+    await expectUsdToEthx("1000", BigInt(1100) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    /**
+     $WBTC Pool:
+      P_WBTC: 1100.0
+      M_WBTC: 10.0
+      M_USD: 9949.999999999999999997
+      M_USD_WBTC: 9949.999999999999999997
+      M_WBTCx: 702.410589340633197028
+      AAR: 110.552764%
+      APY: 0.0
+      Mode: AdjustmentBelowAARS
+     */
+    console.log(`\nPrice: 2100; AAR (211%) > 200%, mint pairs with 0.1 $WBTC, Pty Pool Sell High should be triggered`);
+    await expectMintPair("0.1", BigInt(2100) * (power(PRICE_DECIMALS)));
+    console.log(`WBTC Vault asset balance: ${ethers.formatUnits(await vf.wbtcVault.assetBalance(), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault $WBTC balance: ${ethers.formatUnits(await vf.wbtc.balanceOf(await vf.wbtcVault.getAddress()), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault token pot $WBTC balance: ${ethers.formatUnits(await vf.wbtc.balanceOf(await vf.wbtcVault.tokenPot()), await vf.wbtc.decimals())} $WBTC`);
+    const ptyPoolSellHighMinAssetAmount = await vf.settings.vaultParamValue(await vf.wbtcVault.getAddress(), encodeBytes32String("PtyPoolMinAssetAmount"));
+    console.log(`WBTC Vault PtyPoolSellHigh minimal balance: ${ethers.formatUnits(ptyPoolSellHighMinAssetAmount, await vf.settings.decimals())} $WBTC`);
+
+    await expect(vf.wbtc.connect(vf.Alice).mint(vf.Alice.address, ethers.parseUnits("1000000", await vf.wbtc.decimals()))).not.to.be.reverted;
+    await expect(vf.wbtc.connect(vf.Alice).approve(await vf.wbtcVault.getAddress(), ethers.parseUnits("1000000", await vf.wbtc.decimals()))).not.to.be.reverted;
+    await expect(vf.wbtc.connect(vf.Alice).approve(await vf.wbtcVaultPtyPoolBuyLow.getAddress(), ethers.parseUnits("1000000", await vf.wbtc.decimals()))).not.to.be.reverted;
+    await expect(vf.wbtc.connect(vf.Alice).approve(await vf.wbtcVaultPtyPoolSellHigh.getAddress(), ethers.parseUnits("1000000", await vf.wbtc.decimals()))).not.to.be.reverted;
+
+    await expect(vf.wbtc.connect(vf.Alice).mint(vf.Bob.address, ethers.parseUnits("1000000", await vf.wbtc.decimals()))).not.to.be.reverted;
+    await expect(vf.wbtc.connect(vf.Bob).approve(await vf.wbtcVault.getAddress(), ethers.parseUnits("1000000", await vf.wbtc.decimals()))).not.to.be.reverted;
+    await expect(vf.wbtc.connect(vf.Bob).approve(await vf.wbtcVaultPtyPoolBuyLow.getAddress(), ethers.parseUnits("1000000", await vf.wbtc.decimals()))).not.to.be.reverted;
+    await expect(vf.wbtc.connect(vf.Bob).approve(await vf.wbtcVaultPtyPoolSellHigh.getAddress(), ethers.parseUnits("1000000", await vf.wbtc.decimals()))).not.to.be.reverted;
+
+    // Alice stakes 0.1 to PtyPoolSellHigh
+    await expect(vf.wbtcVaultPtyPoolSellHigh.connect(vf.Alice).stake(ethers.parseUnits("0.1", await vf.wbtc.decimals()))).not.to.be.rejected;
+    await expectMintPair("0.1", BigInt(2100) * (power(PRICE_DECIMALS)));
+    expect(await vf.wbtcVaultPtyPoolSellHigh.userStakingBalance(vf.Alice.address)).to.equal(ethers.parseUnits("0.1", await vf.wbtc.decimals()));
+    expect(await vf.wbtcVaultPtyPoolSellHigh.totalStakingBalance()).to.equal(ethers.parseUnits("0.1", await vf.wbtc.decimals()));
+    await expect(vf.wbtcVaultPtyPoolSellHigh.connect(vf.Bob).stake(ethers.parseUnits("0.1", await vf.wbtc.decimals()))).not.to.be.rejected;
+
+    console.log(`\nBefore PtyPoolSellHigh triggered`);
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+    await expectMintPair("0.1", BigInt(2100) * (power(PRICE_DECIMALS)));
+    console.log(`\After depositing 0.1 $WBTC and PtyPoolSellHigh triggered`);
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+    expect(await vf.wbtc.balanceOf(await vf.wbtcVault.getAddress())).to.equal(0);
+    console.log(`WBTC Vault asset balance: ${ethers.formatUnits(await vf.wbtcVault.assetBalance(), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault $WBTC balance: ${ethers.formatUnits(await vf.wbtc.balanceOf(await vf.wbtcVault.getAddress()), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault token pot $WBTC balance: ${ethers.formatUnits(await vf.wbtc.balanceOf(await vf.wbtcVault.tokenPot()), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault PtyPoolSellHigh Alice staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.userStakingBalance(vf.Alice.address), await vf.wbtc.decimals())}`);
+    console.log(`WBTC Vault PtyPoolSellHigh Alice earned: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.earnedMatchedToken(vf.Alice.address), await vf.usd.decimals())} $zUSD`);
+    console.log(`WBTC Vault PtyPoolSellHigh Bob staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.userStakingBalance(vf.Bob.address), await vf.wbtc.decimals())}`);
+    console.log(`WBTC Vault PtyPoolSellHigh Bob earned: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.earnedMatchedToken(vf.Bob.address), await vf.usd.decimals())} $zUSD`);
+
+    console.log(`\nBob stakes 10 $WBTC to PtyPoolSellHigh`);
+    await expect(vf.wbtcVaultPtyPoolSellHigh.connect(vf.Bob).stake(ethers.parseUnits("10", await vf.wbtc.decimals()))).not.to.be.rejected;
+    console.log(`WBTC Vault PtyPoolSellHigh Alice staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.userStakingBalance(vf.Alice.address), await vf.wbtc.decimals())}`);
+    console.log(`WBTC Vault PtyPoolSellHigh Bob staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.userStakingBalance(vf.Bob.address), await vf.wbtc.decimals())}`);
+
+    console.log(`\nBefore PtyPoolSellHigh triggered again`);
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+    await expectMintPair("0.1", BigInt(2100) * (power(PRICE_DECIMALS)));
+    console.log(`\nAfter depositing 0.1 $WBTC and PtyPoolSellHigh triggered again`);
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+    expect(await vf.wbtc.balanceOf(await vf.wbtcVault.getAddress())).to.equal(0);
+    console.log(`WBTC Vault asset balance: ${ethers.formatUnits(await vf.wbtcVault.assetBalance(), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault $WBTC balance: ${ethers.formatUnits(await vf.wbtc.balanceOf(await vf.wbtcVault.getAddress()), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault token pot $WBTC balance: ${ethers.formatUnits(await vf.wbtc.balanceOf(await vf.wbtcVault.tokenPot()), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault PtyPoolSellHigh Alice staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.userStakingBalance(vf.Alice.address), await vf.wbtc.decimals())}`);
+    console.log(`WBTC Vault PtyPoolSellHigh Alice earned: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.earnedMatchedToken(vf.Alice.address), await vf.usd.decimals())} $zUSD`);
+    console.log(`WBTC Vault PtyPoolSellHigh Bob staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.userStakingBalance(vf.Bob.address), await vf.wbtc.decimals())}`);
+    console.log(`WBTC Vault PtyPoolSellHigh Bob earned: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolSellHigh.earnedMatchedToken(vf.Bob.address), await vf.usd.decimals())} $zUSD`);
+    await expect(vf.wbtcVaultPtyPoolSellHigh.connect(vf.Bob).exit()).not.to.be.rejected;
+
+    /**
+    $WBTC Pool:
+      P_WBTC: 2100.0
+      M_WBTC: 16.415625
+      M_USD: 22981.874999999999999993
+      M_USD_WBTC: 22981.874999999999999993
+      M_WBTCx: 730.439473434514233254
+      AAR: 150.00%
+      APY: 0.0
+      Mode: Stability
+     */
+    console.log(`\nPrice: 1700; AAR (121%) < 130%, mint pairs with 0.1 $WBTC, Pty Pool Buy Low should be triggered`);
+    await expectMintPair("0.1", BigInt(1700) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+    console.log(`WBTC Vault asset balance: ${ethers.formatUnits(await vf.wbtcVault.assetBalance(), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault token pot balance: ${ethers.formatUnits(await vf.wbtc.balanceOf(await vf.wbtcVault.tokenPot()), await vf.wbtc.decimals())} $WBTC`);
+    const ptyPoolBuyLowPtyPoolMinUsdAmount = await vf.settings.vaultParamValue(await vf.wbtcVault.getAddress(), encodeBytes32String("PtyPoolMinUsdAmount"));
+    console.log(`WBTC Vault PtyPoolBuyLow minimal $zUSD amount: ${ethers.formatUnits(ptyPoolBuyLowPtyPoolMinUsdAmount, await vf.settings.decimals())} $zUSD`);
+
+    await expect(vf.usd.connect(vf.Alice).transfer(vf.Bob.address, ethers.parseUnits("1000", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.usd.connect(vf.Alice).approve(vf.wbtcVaultPtyPoolBuyLow.getAddress(), ethers.parseUnits("1000000", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.usd.connect(vf.Bob).approve(vf.wbtcVaultPtyPoolBuyLow.getAddress(), ethers.parseUnits("1000000", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.wbtcVaultPtyPoolBuyLow.connect(vf.Alice).stake(ethers.parseUnits("100", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.wbtcVaultPtyPoolBuyLow.connect(vf.Bob).stake(ethers.parseUnits("100", await vf.usd.decimals()))).not.to.be.rejected;
+    await expectMintPair("0.1", BigInt(1700) * (power(PRICE_DECIMALS)));
+    console.log(`WBTC Vault PtyPoolBuyLow Alice staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolBuyLow.userStakingBalance(vf.Alice.address), await vf.usd.decimals())} $zUSD`);
+    console.log(`WBTC Vault PtyPoolBuyLow Alice earned: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolBuyLow.earnedMatchedToken(vf.Alice.address), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault PtyPoolBuyLow Bob staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolBuyLow.userStakingBalance(vf.Bob.address), await vf.usd.decimals())} $zUSD`);
+    console.log(`WBTC Vault PtyPoolBuyLow Bob earned: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolBuyLow.earnedMatchedToken(vf.Bob.address), await vf.wbtc.decimals())} $WBTC`);
+
+    console.log(`Alice $zUSD balance: ${ethers.formatUnits(await vf.usd.balanceOf(vf.Alice.address), await vf.usd.decimals())} $zUSD`);
+    console.log(`Bob $zUSD balance: ${ethers.formatUnits(await vf.usd.balanceOf(vf.Bob.address), await vf.usd.decimals())} $zUSD`);
+    await expect(vf.wbtcVaultPtyPoolBuyLow.connect(vf.Alice).stake(ethers.parseUnits("5000", await vf.usd.decimals()))).not.to.be.rejected;
+    await expect(vf.wbtcVaultPtyPoolBuyLow.connect(vf.Bob).stake(ethers.parseUnits("10000", await vf.usd.decimals()))).not.to.be.rejected;
+    console.log(`\nBefore PtyPoolBuyLow triggered`);
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+    await expectMintPair("0.1", BigInt(1700) * (power(PRICE_DECIMALS)));
+    console.log(`\nAfter depositing 0.1 $ETH and PtyPoolBuyLow triggered`);
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+    console.log(`WBTC Vault asset balance: ${ethers.formatUnits(await vf.wbtcVault.assetBalance(), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault token pot balance: ${ethers.formatUnits(await vf.wbtc.balanceOf(await vf.wbtcVault.tokenPot()), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault PtyPoolBuyLow Alice staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolBuyLow.userStakingBalance(vf.Alice.address), await vf.usd.decimals())} $zUSD`);
+    console.log(`WBTC Vault PtyPoolBuyLow Alice earned: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolBuyLow.earnedMatchedToken(vf.Alice.address), await vf.wbtc.decimals())} $WBTC`);
+    console.log(`WBTC Vault PtyPoolBuyLow Bob staking balance: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolBuyLow.userStakingBalance(vf.Bob.address), await vf.usd.decimals())} $zUSD`);
+    console.log(`WBTC Vault PtyPoolBuyLow Bob earned: ${ethers.formatUnits(await vf.wbtcVaultPtyPoolBuyLow.earnedMatchedToken(vf.Bob.address), await vf.wbtc.decimals())} $WBTC`);
+
+    await expect(vf.Alice.sendTransaction({ to: await vf.wbtcVault.getAddress(), value: ethers.parseEther('0.1') })).to.be.rejected;
+    
+    const tokenPot = await TokenPot__factory.connect(await vf.wbtcVault.tokenPot(), vf.Alice);
+    await expect(tokenPot.connect(vf.Alice).withdraw(vf.Alice.address, nativeTokenAddress, ethers.parseEther('0.1'))).to.be.revertedWith('TokenPot: caller is not the owner');
+    await expect(tokenPot.connect(vf.Alice).withdraw(vf.Alice.address, await vf.wbtc.getAddress(), ethers.parseUnits('0.1', await vf.wbtc.decimals()))).to.be.revertedWith('TokenPot: caller is not the owner');
+
+  });
+
   it("All Redeem work", async () => {
+    await vf.settings.connect(vf.Alice).updateVaultParamValue(await vf.wbtcVault.getAddress(), encodeBytes32String("Y"), 0);
+    await expectMintPair("4", BigInt(2300) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    // to Low
+    await expectRedeemByPairWithUsd("1000", BigInt(1800) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    // Already to low
+    await expectRedeemByUsdAARS("1000", BigInt(1800) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    await expectRedeemByPairWithUsd("1000", BigInt(1800) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    // expect to High
+    await expectRedeemByPairWithUsd("100", BigInt(3200) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    // Already to High
+    await expectRedeemByXtokenAARU("0.5", BigInt(3200) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    // expect to stable
+    await expectRedeemByPairWithUsd("100", BigInt(1700) * (power(PRICE_DECIMALS)));
+    await printVaultState(vf.wbtcVault, vf.vaultQuery);
+
+    // Already to stable
+  });
+
+  it("Redeem with ERC20 assets with decimals other than 18 work", async () => {
+    // Update $WBTC decimals to 8
+    await expect(vf.wbtc.connect(vf.Alice).setDecimals(8)).not.to.be.reverted;
+    
     await vf.settings.connect(vf.Alice).updateVaultParamValue(await vf.wbtcVault.getAddress(), encodeBytes32String("Y"), 0);
     await expectMintPair("4", BigInt(2300) * (power(PRICE_DECIMALS)));
     await printVaultState(vf.wbtcVault, vf.vaultQuery);

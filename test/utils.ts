@@ -498,7 +498,7 @@ export const getTime = async () => {
 
 export const makeToken = async (name: string, symbol: string, decimals: number = 18) => {
   const MockERC20Factory = await ethers.getContractFactory("MockERC20");
-  const ERC20 = await MockERC20Factory.deploy(name, symbol);
+  const ERC20 = await MockERC20Factory.deploy(name, symbol, 18);
   const erc20 = MockERC20__factory.connect(await ERC20.getAddress(), provider);
 
   const [Alice] = await ethers.getSigners();

@@ -61,6 +61,9 @@ contract StableVault is IVault, ReentrancyGuard, ProtocolOwner {
     _assetToken = _assetToken_;
     _marginToken = _marginToken_;
     _usdToken = protocol.usdToken();
+    if (_assetToken != Constants.NATIVE_TOKEN) {
+      require(IERC20Metadata(_assetToken).decimals() <= 18, "Invalid asset token decimals");
+    }
 
     settings = IProtocolSettings(_settings);
 

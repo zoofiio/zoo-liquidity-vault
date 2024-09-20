@@ -5,6 +5,7 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import "../libs/Constants.sol";
@@ -22,6 +23,7 @@ import "../settings/ProtocolOwner.sol";
 import "./TokenPot.sol";
 
 contract Vault is IVault, ReentrancyGuard, ProtocolOwner {
+  using Math for uint256;
   using SafeMath for uint256;
   using VaultCalculator for Vault;
 
@@ -72,6 +74,9 @@ contract Vault is IVault, ReentrancyGuard, ProtocolOwner {
     _assetToken = _assetToken_;
     _marginToken = _marginToken_;
     _usdToken = protocol.usdToken();
+    if (_assetToken != Constants.NATIVE_TOKEN) {
+      require(IERC20Metadata(_assetToken).decimals() <= 18, "Invalid asset token decimals");
+    }
 
     settings = IProtocolSettings(_settings);
     _vaultMode = Constants.VaultMode.Empty;
@@ -336,7 +341,7 @@ contract Vault is IVault, ReentrancyGuard, ProtocolOwner {
       return;
     }
 
-    uint256 deltaAssetAmount = deltaUsdAmount.mul(10 ** S.P_ETH_DECIMALS).div(S.P_ETH);
+    uint256 deltaAssetAmount = this.denormalizeAssetAmount(deltaUsdAmount.mulDiv(10 ** S.P_ETH_DECIMALS, S.P_ETH));
     tokenPot.withdraw(address(ptyPoolBuyLow), _assetToken, deltaAssetAmount);
     // console.log('_ptyPoolMatchBelowAARS, deltaUsdAmount: %s, deltaAssetAmount: %s', deltaUsdAmount, deltaAssetAmount);
 
@@ -353,7 +358,7 @@ contract Vault is IVault, ReentrancyGuard, ProtocolOwner {
       return;
     }
 
-    uint256 deltaUsdAmount = deltaAssetAmount.mul(S.P_ETH).div(10 ** S.P_ETH_DECIMALS);
+    uint256 deltaUsdAmount = this.normalizeAssetAmount(deltaAssetAmount).mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS);
     uint256 usdSharesAmount = IUsd(_usdToken).mint(address(ptyPoolSellHigh), deltaUsdAmount);
     _usdTotalSupply = _usdTotalSupply.add(deltaUsdAmount);
     emit UsdMinted(_msgSender(), deltaAssetAmount, deltaUsdAmount, usdSharesAmount, S.P_ETH, S.P_ETH_DECIMALS);

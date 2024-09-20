@@ -26,6 +26,16 @@ library VaultCalculator {
     return IERC20Metadata(assetToken).decimals();
   }
 
+  function normalizeAssetAmount(IVault self, uint256 amount) public view returns (uint256) {
+    uint256 decimalsOffset = 18 - vaultAssetTokenDecimals(self);
+    return amount.mul(10 ** decimalsOffset);
+  }
+
+  function denormalizeAssetAmount(IVault self, uint256 amount) public view returns (uint256) {
+    uint256 decimalsOffset = 18 - vaultAssetTokenDecimals(self);
+    return amount.div(10 ** decimalsOffset);
+  }
+
   /**
    * @dev AAReth = (M_ETH * P_ETH / Musd-eth) * 100%
    */
@@ -38,6 +48,8 @@ library VaultCalculator {
       return type(uint256).max;
     }
     (uint256 assetTokenPrice, uint256 assetTokenPriceDecimals) = self.assetTokenPrice();
+
+    assetTotalAmount = normalizeAssetAmount(self, assetTotalAmount);
     return assetTotalAmount.mulDiv(assetTokenPrice, 10 ** assetTokenPriceDecimals).mulDiv(10 ** self.AARDecimals(), self.usdTotalSupply());
   }
 
@@ -75,6 +87,7 @@ library VaultCalculator {
       // ΔUSD = ΔETH * P_ETH * 1 / AART
       // ΔETHx = ΔETH * (1 - 1 / AART) = ΔETH * (AART - 1) / AART
       Constants.Terms memory T;
+      assetAmount = normalizeAssetAmount(self, assetAmount);
       T.T1 = assetAmount.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS);
       usdOutAmount = T.T1.mulDiv(10 ** S.AARDecimals, S.AART);
       marginTokenOutAmount = assetAmount.mulDiv(S.AART.sub(10 ** S.AARDecimals), S.AART);
@@ -89,6 +102,7 @@ library VaultCalculator {
     Constants.VaultState memory S = getVaultState(self);
 
     // ΔUSD = ΔETH * P_ETH
+    assetAmount = normalizeAssetAmount(self, assetAmount);
     uint256 usdOutAmount = assetAmount.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS);
     return (S, usdOutAmount);
   }
@@ -101,6 +115,9 @@ library VaultCalculator {
 
     uint256 aar101 = (101 * (10 ** (S.AARDecimals - 2)));
     uint256 marginTokenOutAmount;
+
+    assetAmount = normalizeAssetAmount(self, assetAmount);
+    S.M_ETH = normalizeAssetAmount(self, S.M_ETH);
     
     if (S.aar >= aar101) { // aar >= 101% 
       // ΔETHx = ΔETH * P_ETH * M_ETHx / (M_ETH * P_ETH - Musd-eth)
@@ -149,10 +166,12 @@ library VaultCalculator {
     Constants.VaultState memory S = getVaultState(self);
 
     // ΔETH = ΔETHx * (M_ETH * P_ETH - Musd-eth) / (M_ETHx * P_ETH)
+    S.M_ETH = normalizeAssetAmount(self, S.M_ETH);
     uint256 assetOutAmount = marginTokenAmount.mulDiv(
       S.M_ETH.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS).sub(S.M_USD_ETH),
       S.M_ETHx.mulDiv(S.P_ETH, 10 ** S.P_ETH_DECIMALS)
     );
+    assetOutAmount = denormalizeAssetAmount(self, assetOutAmount);
     return (S, assetOutAmount);
   }
 
@@ -170,6 +189,7 @@ library VaultCalculator {
     else {
       // ΔETH = ΔUSD / P_ETH
       uint256 assetOutAmount = usdAmount.mulDiv(10 ** S.P_ETH_DECIMALS, S.P_ETH);
+      assetOutAmount = denormalizeAssetAmount(self, assetOutAmount);
       return (S, assetOutAmount);
     }
   }
@@ -184,6 +204,7 @@ library VaultCalculator {
     uint256 aar101 = (101 * (10 ** (S.AARDecimals - 2)));
     uint256 marginTokenOutAmount;
     
+    S.M_ETH = normalizeAssetAmount(self, S.M_ETH);
     if (S.aar >= aar101) { // aar >= 101% 
       // ΔETHx = ΔUSD * M_ETHx * (1 + r) / (M_ETH * P_ETH - Musd-eth)
       marginTokenOutAmount = usdAmount.mulDiv(
@@ -216,6 +237,7 @@ library VaultCalculator {
 
     // ΔETH = (Musd-eth * AART - M_ETH * P_ETH) / (P_ETH * (AART - 1))
     // ΔUSD = (Musd-eth * AART - M_ETH * P_ETH) / (AART - 1)
+    S.M_ETH = normalizeAssetAmount(self, S.M_ETH);
     uint256 deltaUsdAmount = S.M_USD_ETH.mul(S.AART).sub(
       S.M_ETH.mulDiv(S.P_ETH.mul(10 ** S.AARDecimals), 10 ** S.P_ETH_DECIMALS)
     ).div(S.AART.sub(10 ** S.AARDecimals));
@@ -236,9 +258,11 @@ library VaultCalculator {
     Constants.VaultState memory S = getVaultState(self);
 
     // ΔETH = (M_ETH * P_ETH - Musd-eth * AART) / (P_ETH * (AART - 1))
+    S.M_ETH = normalizeAssetAmount(self, S.M_ETH);
     uint256 deltaAssetAmount = S.M_ETH.mul(S.P_ETH).mul(10 ** S.AARDecimals).sub(
       S.M_USD_ETH.mul(S.AART).mul(10 ** S.P_ETH_DECIMALS)
     ).div(S.P_ETH.mul(S.AART.sub(10 ** S.AARDecimals)));
+    deltaAssetAmount = denormalizeAssetAmount(self, deltaAssetAmount);
 
     uint256 minAssetAmount = self.paramValue("PtyPoolMinAssetAmount");
     if (self.assetTokenDecimals() > settings.decimals()) {

@@ -83,7 +83,7 @@ export async function verfiy(key: string) {
   if (!item.address) {
     return;
   }
-  let taskArguments = {
+  let taskArguments: any = {
     address: item.address
   };
 

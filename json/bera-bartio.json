@@ -116,5 +116,13 @@
       "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "0x94CB06fBd2c8Ae161d8b3871C090cb4bF0785492"
     ]
+  },
+  "WBERA_BexPriceFeed": {
+    "address": "0x223B18a4cF01cc0B7f39E7eaCCE8823075Ba6879",
+    "args": [
+      "0x8685CE9Db06D40CBa73e3d09e6868FE476B5dC89",
+      "0xd28d852cbcc68DCEC922f6d5C7a8185dBaa104B7",
+      "0x0E4aaF1351de4c0264C5c7056Ef3777b41BD8e03"
+    ]
   }
 }
